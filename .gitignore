@@ -12,6 +12,9 @@
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
+*.sln
+*.vcxproj
+*.vcxproj.user
 
 # Mono auto generated files
 mono_crash.*
@@ -28,6 +31,7 @@ x86/
 [Aa][Rr][Mm]64/
 bld/
 [Bb]in/
+[Bb]in-int/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
