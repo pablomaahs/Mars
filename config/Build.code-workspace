@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "..\\scripts"
+		},
+		{
+			"path": "..\\vendor\\config"
+		},
+		{
+			"path": "."
+		}
+	]
+}

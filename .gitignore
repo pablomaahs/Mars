@@ -35,10 +35,12 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
-[Vv]endor/bootstrapping/
-[Vv]endor/glfw/
-[Vv]endor/glm/
-[Vv]endor/premake5/
+[Vv]endor/*
+![Vv]endor/config/
+![Vv]endor/glad/
+
+# Bootstrap
+*.bootstrap.json
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -379,7 +381,7 @@ FodyWeavers.xsd
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-*.code-workspace
+#*.code-workspace
 
 # Local History for Visual Studio Code
 .history/

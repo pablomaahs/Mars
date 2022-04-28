@@ -1,24 +1,24 @@
 project "Glad"
-
+    location "../../glad"
     kind "StaticLib"
     language "C"
-    staticruntime "on"
     
-    targetdir   ("../../bin/" .. OutputDir .. "/%{prj.name}")
-    objdir      ("../../bin-int/" .. OutputDir .. "/%{prj.name}")
+    targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
+    objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
     files {
-        "include/glad/glad.h",
-        "include/KHR/khrplatform.h",
-        "src/glad.c"
+        "../../glad/include/glad/glad.h",
+        "../../glad/include/KHR/khrplatform.h",
+        "../../glad/src/glad.c"
     }
 
     includedirs {
-        "include"
+        "../../glad/include"
     }
     
     filter "system:windows"
         systemversion "latest"
+        staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"

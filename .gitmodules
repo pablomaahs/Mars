@@ -1,6 +1,3 @@
 [submodule "vendor/bootstrapping"]
 	path = vendor/bootstrapping
-	url = https://github.com/pablomaahs/bootstrapping
-[submodule "vendor/glfw"]
-	path = vendor/glfw
-	url = https://github.com/pablomaahs/glfw
+	url = https://github.com/corporateshark/bootstrapping
