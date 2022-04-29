@@ -21,5 +21,12 @@
             "url": "https://github.com/glfw/glfw.git",
             "revision": "3.3.7"
         }
+    },
+    {
+        "name": "stb",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/nothings/stb.git"
+        }
     }
 ]

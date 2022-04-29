@@ -14,6 +14,7 @@ workspace "Mars"
         include "../vendor/config/glfw"
         include "../vendor/config/glad"
         include "../vendor/config/glm"
+        include "../vendor/config/stb"
 
     group ""
 
@@ -39,7 +40,8 @@ location "../%{prj.name}"
         "../%{prj.name}/src",
         "../vendor/GLFW/include",
         "../vendor/Glad/include",
-        "../vendor/Glm/glm"
+        "../vendor/Glm/",
+        "../vendor/Stb/"
     }
 
     links {

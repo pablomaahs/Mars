@@ -2,10 +2,14 @@
 
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
-#include "ext/matrix_transform.hpp"
-#include "ext/matrix_clip_space.hpp"
-#include "vec3.hpp"
-#include "mat4x4.hpp"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/vec3.hpp"
+#include "glm/mat4x4.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
 
 #pragma region Shader Source
 
