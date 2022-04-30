@@ -29,6 +29,10 @@ project "Glm"
     includedirs {
         "../../glm"
     }
+
+    defines {
+        "_CRT_SECURE_NO_WARNINGS"
+    }
     
     filter "system:windows"
         systemversion "latest"

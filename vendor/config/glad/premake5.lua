@@ -16,6 +16,10 @@ project "Glad"
         "../../glad/include"
     }
     
+    defines {
+        "_CRT_SECURE_NO_WARNINGS"
+    }
+
     filter "system:windows"
         systemversion "latest"
         staticruntime "on"
