@@ -3,6 +3,9 @@ project "Stb"
     kind "None"
     language "C"
 
+    targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
+    objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
+
     files {
         "../../stb/stb/*.h"
     }

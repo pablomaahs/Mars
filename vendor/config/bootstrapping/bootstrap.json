@@ -28,5 +28,13 @@
             "type": "git",
             "url": "https://github.com/nothings/stb.git"
         }
+    },
+    {
+        "name": "imgui",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/pablomaahs/imgui.git",
+            "revision": "v1.87"
+        }
     }
 ]

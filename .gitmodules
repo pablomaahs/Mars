@@ -1,3 +1,6 @@
 [submodule "vendor/bootstrapping"]
 	path = vendor/bootstrapping
 	url = https://github.com/corporateshark/bootstrapping
+[submodule "vendor/imgui/imgui"]
+	path = vendor/imgui/imgui
+	url = https://github.com/pablomaahs/imgui

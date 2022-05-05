@@ -15,6 +15,7 @@ workspace "Mars"
         include "../vendor/config/glad"
         include "../vendor/config/glm"
         include "../vendor/config/stb"
+        include "../vendor/config/imgui"
 
     group ""
 
@@ -41,13 +42,15 @@ location "../%{prj.name}"
         "../vendor/GLFW/include",
         "../vendor/Glad/include",
         "../vendor/Glm/",
-        "../vendor/Stb/"
+        "../vendor/Stb/",
+        "../vendor/ImGui/"
     }
 
     links {
         "GLFW",
         "Glad",
-        "Glm"
+        "Glm",
+        "ImGui"
     }
 
     filter "system:windows"

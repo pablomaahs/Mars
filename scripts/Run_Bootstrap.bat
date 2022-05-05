@@ -12,6 +12,7 @@ xcopy .\src\glm\glm\    ..\glm\glm\         /Q /S /I /R /Y
 xcopy .\src\glm\util\   ..\glm\glm\util\    /Q /S /I /R /Y
 xcopy .\src\stb\*.h     ..\stb\stb\         /Q /S /I /Y
 xcopy .\src\stb\LICENSE ..\stb\stb\         /Q /S /I /R /Y
+xcopy .\src\imgui\      ..\imgui\imgui\     /Q /S /I /R /Y
 
 echo Done
 popd
