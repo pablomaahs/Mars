@@ -59,9 +59,6 @@ int main()
 	EASY_PROFILER_ENABLE;
 	EASY_MAIN_THREAD;
 
-	OPTICK_THREAD("Main Thread");
-	OPTICK_START_CAPTURE();
-
 	#pragma region Initialization
 
 	// Setup OpenGL context with GLFW and Glad
@@ -264,9 +261,7 @@ int main()
 		
 		{
 			EASY_BLOCK("Mars Rendering");
-			OPTICK_PUSH("Mars Rendering");
 			glDrawArrays(GL_TRIANGLES, 0, 3);
-			OPTICK_POP();
 		}
 
 		// Start the Dear ImGui frame
@@ -280,10 +275,8 @@ int main()
 		// Rendering
 		{
 			EASY_BLOCK("ImGui Rendering");
-			OPTICK_PUSH("Mars Rendering");
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-			OPTICK_POP();
 		}
 
 		// Update and Render additional Platform Windows
@@ -316,9 +309,6 @@ int main()
 
 	profiler::dumpBlocksToFile("profiler_data.prof");
 	EASY_PROFILER_DISABLE;
-
-	OPTICK_STOP_CAPTURE();
-	OPTICK_SAVE_CAPTURE("profiler_dump");
 
 	#pragma endregion
 

@@ -60,7 +60,8 @@ location "../%{prj.name}"
     }
 
     defines {
-        "DISABLE_EASY_PROFILER"
+        "DISABLE_EASY_PROFILER",
+        "DISABLE_OPTICK"
     }
 
     filter "system:windows"

@@ -18,7 +18,9 @@
 #endif
 #include "easy/profiler.h"
 
+#ifndef DISABLE_OPTICK
 #include "optick/src/optick.h"
+#endif
 
 #ifdef MSVC
 	#include <Windows.h>
