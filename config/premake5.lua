@@ -16,6 +16,7 @@ workspace "Mars"
         include "../vendor/config/glm"
         include "../vendor/config/stb"
         include "../vendor/config/imgui"
+        include "../vendor/config/easy_profiler"
 
     group ""
 
@@ -43,14 +44,16 @@ location "../%{prj.name}"
         "../vendor/Glad/include",
         "../vendor/Glm/",
         "../vendor/Stb/",
-        "../vendor/ImGui/"
+        "../vendor/ImGui/",
+        "../vendor/Easy_Profiler/"
     }
 
     links {
         "GLFW",
         "Glad",
         "Glm",
-        "ImGui"
+        "ImGui",
+        "EasyProfiler"
     }
 
     filter "system:windows"
