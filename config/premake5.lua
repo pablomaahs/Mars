@@ -17,6 +17,7 @@ workspace "Mars"
         include "../vendor/config/stb"
         include "../vendor/config/imgui"
         include "../vendor/config/easy_profiler"
+        include "../vendor/config/optick"
 
     group ""
 
@@ -45,7 +46,8 @@ location "../%{prj.name}"
         "../vendor/Glm/",
         "../vendor/Stb/",
         "../vendor/ImGui/",
-        "../vendor/Easy_Profiler/easy_profiler_core/include"
+        "../vendor/Easy_Profiler/easy_profiler_core/include",
+        "../vendor/Optick"
     }
 
     links {
@@ -53,7 +55,8 @@ location "../%{prj.name}"
         "Glad",
         "Glm",
         "ImGui",
-        "EasyProfiler"
+        "EasyProfiler",
+        "Optick"
     }
 
     defines {

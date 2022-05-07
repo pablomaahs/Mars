@@ -18,6 +18,8 @@
 #endif
 #include "easy/profiler.h"
 
+#include "optick/src/optick.h"
+
 #ifdef MSVC
 	#include <Windows.h>
 #endif
