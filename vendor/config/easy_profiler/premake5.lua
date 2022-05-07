@@ -44,7 +44,8 @@ project "EasyProfiler"
         "EASY_PROFILER_VERSION_MINOR=1",
         "EASY_PROFILER_VERSION_PATCH=0",
         "EASY_PROFILER_STATIC",
-        "BUILD_WITH_EASY_PROFILER"
+        "BUILD_WITH_EASY_PROFILER",
+        "EASY_OPTION_LOG_ENABLED"
     }
     
     filter "system:windows"

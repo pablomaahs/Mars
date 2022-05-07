@@ -12,6 +12,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#ifdef GLCORE_PLATFORM_WINDOWS
+#ifndef DISABLE_EASY_PROFILER
+#define USING_EASY_PROFILER
+#define EASY_PROFILER_STATIC
+#endif
+#include "easy/profiler.h"
+
+#ifdef MSVC
 	#include <Windows.h>
 #endif

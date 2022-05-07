@@ -45,7 +45,7 @@ location "../%{prj.name}"
         "../vendor/Glm/",
         "../vendor/Stb/",
         "../vendor/ImGui/",
-        "../vendor/Easy_Profiler/"
+        "../vendor/Easy_Profiler/easy_profiler_core/include"
     }
 
     links {
@@ -54,6 +54,10 @@ location "../%{prj.name}"
         "Glm",
         "ImGui",
         "EasyProfiler"
+    }
+
+    defines {
+        "DISABLE_EASY_PROFILER"
     }
 
     filter "system:windows"

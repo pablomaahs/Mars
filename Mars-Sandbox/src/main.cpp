@@ -56,6 +56,9 @@ void main()
 
 int main()
 {
+	EASY_PROFILER_ENABLE;
+	EASY_MAIN_THREAD;
+
 	#pragma region Initialization
 
 	// Setup OpenGL context with GLFW and Glad
@@ -240,6 +243,8 @@ int main()
 	// Main Loop
 	while (!glfwWindowShouldClose(window))
 	{
+		EASY_BLOCK("Main loop");
+
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
 		glViewport(0, 0, width, height);
@@ -254,7 +259,10 @@ int main()
 		glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize, &perFrameData);
 		glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
 		
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		{
+			EASY_BLOCK("Mars Rendering");
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+		}
 
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
@@ -265,8 +273,11 @@ int main()
 		ImGui::ShowDemoWindow();
 
 		// Rendering
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		{
+			EASY_BLOCK("ImGui Rendering");
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
 
 		// Update and Render additional Platform Windows
 		// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
@@ -295,6 +306,9 @@ int main()
 
 	glfwDestroyWindow(window);
 	glfwTerminate();
+
+	profiler::dumpBlocksToFile("profiler_data.prof");
+	EASY_PROFILER_DISABLE;
 
 	#pragma endregion
 
