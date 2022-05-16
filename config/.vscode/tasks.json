@@ -18,6 +18,16 @@
                 "kind": "build",
                 "isDefault": false
             }
+        },
+        ,
+        {
+            "label": "Build External Dependencies",
+            "command": "Start-Process -FilePath \"${workspaceFolder}\\..\\scripts\\Build_External_Dependencies.bat\" -Wait -NoNewWindow",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
         }
     ]
 }

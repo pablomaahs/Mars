@@ -47,7 +47,9 @@ location "../%{prj.name}"
         "../vendor/Stb/",
         "../vendor/ImGui/",
         "../vendor/Easy_Profiler/easy_profiler_core/include",
-        "../vendor/Optick"
+        "../vendor/Optick",
+        "../vendor/Assimp/include",
+        "../vendor/Assimp/build/include"
     }
 
     links {
@@ -56,7 +58,8 @@ location "../%{prj.name}"
         "Glm",
         "ImGui",
         "EasyProfiler",
-        "Optick"
+        "Optick",
+        "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib"
     }
 
     defines {
