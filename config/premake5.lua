@@ -18,6 +18,7 @@ workspace "Mars"
         include "../vendor/config/imgui"
         include "../vendor/config/easy_profiler"
         include "../vendor/config/optick"
+        include "../vendor/config/etc2comp"
 
     group ""
 
@@ -49,7 +50,10 @@ location "../%{prj.name}"
         "../vendor/Easy_Profiler/easy_profiler_core/include",
         "../vendor/Optick",
         "../vendor/Assimp/include",
-        "../vendor/Assimp/build/include"
+        "../vendor/Assimp/build/include",
+        "../vendor/Etc2Comp/Etc2Comp/EtcLib/Etc",
+        "../vendor/Etc2Comp/Etc2Comp/EtcLib/EtcCodec",
+        "../vendor/Etc2Comp/Etc2Comp/EtcTool"
     }
 
     links {
@@ -59,7 +63,9 @@ location "../%{prj.name}"
         "ImGui",
         "EasyProfiler",
         "Optick",
-        "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib"
+        "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib",
+        "Etc2Comp",
+        "Etc2CompTool"
     }
 
     defines {

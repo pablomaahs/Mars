@@ -16,6 +16,7 @@ xcopy .\src\imgui\              ..\imgui\imgui\         /Q /S /I /R /Y
 xcopy .\src\easy_profiler\      ..\easy_profiler\       /Q /S /I /R /Y
 xcopy .\src\optick\src\         ..\optick\optick\src    /Q /S /I /R /Y
 xcopy .\src\assimp\             ..\assimp               /Q /S /I /R /Y
+xcopy .\src\etc2comp\           ..\etc2comp\etc2comp\   /Q /S /I /R /Y
 
 echo Done
 popd

@@ -60,5 +60,12 @@
             "url": "https://github.com/assimp/assimp.git",
             "revision": "v5.2.3"
         }
+    },
+    {
+        "name": "etc2comp",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/google/etc2comp.git"
+        }
     }
 ]
