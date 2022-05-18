@@ -11,6 +11,7 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
 
 #ifndef DISABLE_EASY_PROFILER
 #define USING_EASY_PROFILER

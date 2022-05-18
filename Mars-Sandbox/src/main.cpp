@@ -12,6 +12,11 @@
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
 #include "assimp/cimport.h"
+#include "EtcErrorMetric.h"
+#include "Etc.h"
+#include "EtcImage.h"
+#include "EtcFilter.h"
+#include "EtcFile.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -259,6 +264,33 @@ int main()
 	glVertexArrayAttribBinding(VAO, 0, 0);
 
 	const int numVertices = static_cast<int>(bunnyPositions.size());
+
+	#pragma endregion
+
+	#pragma region Compress Textures
+
+	int w, h, comp;
+	stbi_ldr_to_hdr_scale(1.0f);
+	stbi_ldr_to_hdr_gamma(2.2f);
+	float* imgf = stbi_loadf("rsc/textures/example/example.png", &w, &h, &comp, 4);
+
+	const auto etcFormat = Etc::Image::Format::RGB8;
+	const auto errorMetric = Etc::ErrorMetric::BT709;
+	Etc::Image image(imgf, w, h, errorMetric);
+
+	image.Encode(etcFormat, errorMetric, ETCCOMP_DEFAULT_EFFORT_LEVEL, std::thread::hardware_concurrency(), 1024);
+	Etc::File etcFile("rsc/textures/example/example.ktx", Etc::File::Format::KTX,
+		etcFormat,
+		image.GetEncodingBits(),
+		image.GetEncodingBitsBytes(),
+		image.GetSourceWidth(),
+		image.GetSourceHeight(),
+		image.GetExtendedWidth(),
+		image.GetExtendedHeight()
+	);
+	etcFile.Write();
+
+	stbi_image_free((void*)imgf);
 
 	#pragma endregion
 
