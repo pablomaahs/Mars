@@ -9,6 +9,9 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
+#include "assimp/scene.h"
+#include "assimp/postprocess.h"
+#include "assimp/cimport.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -19,36 +22,27 @@
 
 static const char* shaderVertexSource = R"(
 #version 460 core
-layout (std140, location=0) uniform PerFrameData {
+layout(std140, binding = 0) uniform PerFrameData
+{
 	uniform mat4 MVP;
+	uniform int isWireframe;
 };
-layout (location=0) out vec2 uv;
-
-const vec2 pos[3] = vec2[3](
-	vec2(-0.6f, -0.4f),
-	vec2( 0.6f, -0.4f),
-	vec2( 0.0f,  0.6f)
-);
-const vec2 tc[3] = vec2[3](
-	vec2( 0.0, 0.0 ),
-	vec2( 1.0, 0.0 ),
-	vec2( 0.5, 1.0 )
-);
-
-void main() {
-	gl_Position = MVP * vec4(pos[gl_VertexID], 0.0, 1.0);
-	uv = tc[gl_VertexID];
+layout (location=0) in vec3 pos;
+layout (location=0) out vec3 color;
+void main()
+{
+	gl_Position = MVP * vec4(pos, 1.0);
+	color = isWireframe > 0 ? vec3(0.0f) : pos.xyz;
 }
 )";
 
 static const char* shaderFragmentSource = R"(
 #version 460 core
-layout (location=0) in vec2 uv;
+layout (location=0) in vec3 color;
 layout (location=0) out vec4 out_FragColor;
-uniform sampler2D texture0;
 void main()
 {
-	out_FragColor = texture(texture0, uv);
+	out_FragColor = vec4(color, 1.0);
 };
 )";
 
@@ -180,27 +174,13 @@ int main()
 
 	struct PerFrameData {
 		glm::mat4 mvp;
+		int isWireframe;
 	};
-
-	int w, h, comp;
-	const uint8_t* img = stbi_load("rsc/textures/example/example.png", &w, &h, &comp, 3);
-
-	GLuint texture;
-	glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-	glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, 0);
-	glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTextureStorage2D(texture, 1, GL_RGB8, w, h);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTextureSubImage2D(texture, 0, 0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, img);
-	glBindTextures(0, 1, &texture);
-
-	stbi_image_free((void*)img);
 
 	const GLsizeiptr kBufferSize = sizeof(PerFrameData);
 	GLuint perFrameDataBuf;
 	glCreateBuffers(1, &perFrameDataBuf);
-	glNamedBufferStorage(perFrameDataBuf, kBufferSize, nullptr, GL_DYNAMIC_STORAGE_BIT);
+	glNamedBufferStorage(perFrameDataBuf, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 	#pragma region ImGui
 
@@ -240,6 +220,48 @@ int main()
 
 	#pragma endregion
 
+	#pragma region Assimp Bunny
+	
+	std::vector<glm::vec3> bunnyPositions;
+
+	{
+		const aiScene* bunny = aiImportFile(
+			"rsc/models/bunny/bunny.obj",
+			aiProcess_Triangulate
+		);
+
+		if (!bunny || !bunny->HasMeshes())
+		{
+			std::cout << aiGetErrorString() << std::endl;
+			exit(EXIT_FAILURE);
+		}
+
+		const aiMesh* mesh = bunny->mMeshes[0];
+		for (size_t i = 0; i != mesh->mNumFaces; i++)
+		{
+			const aiFace& face = mesh->mFaces[i];
+			const unsigned int idx[3] = { face.mIndices[0], face.mIndices[1], face.mIndices[2] };
+
+			for (int j = 0; j != 3; j++)
+			{
+				const aiVector3D v = mesh->mVertices[idx[j]];
+				bunnyPositions.push_back(glm::vec3(v.x, v.z, v.y));
+			}
+		}
+	}
+
+	GLuint meshData;
+	glCreateBuffers(1, &meshData);
+	glNamedBufferStorage(meshData, sizeof(glm::vec3) * bunnyPositions.size(), bunnyPositions.data(), 0);
+	glVertexArrayVertexBuffer(VAO, 0, meshData, 0, sizeof(glm::vec3));
+	glEnableVertexArrayAttrib(VAO, 0);
+	glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribBinding(VAO, 0, 0);
+
+	const int numVertices = static_cast<int>(bunnyPositions.size());
+
+	#pragma endregion
+
 	// Main Loop
 	while (!glfwWindowShouldClose(window))
 	{
@@ -251,26 +273,26 @@ int main()
 		glClearColor(.7f, .5f, .2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		const float ratio = width / (float)height;
-		const glm::mat4 m = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-		const glm::mat4 p = glm::ortho(-ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-
-		PerFrameData perFrameData = { p * m };
-		glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize, &perFrameData);
-		glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
-		
-		{
-			EASY_BLOCK("Mars Rendering");
-			glDrawArrays(GL_TRIANGLES, 0, 3);
-		}
-
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		ImGui::ShowDemoWindow();
+		//ImGui::ShowDemoWindow();
+
+		// 2. Properties
+		bool show_window = false;
+		ImGui::Begin("Properties", &show_window);
+		ImGui::LabelText("", "Transform");
+		static float posVec3[3] = { 0.0f, -0.8f, -2.5f };
+		ImGui::InputFloat3("Position", posVec3);
+		static float rotVec3[3] = { -80.0f, 0.0f, 145.0f };
+		ImGui::InputFloat3("Rotation", rotVec3);
+		static float scaVec3[3] = { 1.0f, 1.0f, 1.0f };
+		ImGui::InputFloat3("Scale", scaVec3);
+		ImGui::Separator();
+		ImGui::End();
 
 		// Rendering
 		{
@@ -290,6 +312,31 @@ int main()
 			glfwMakeContextCurrent(backup_current_context);
 		}
 
+		glm::mat4 m = glm::translate(glm::mat4(1.0f), glm::vec3(posVec3[0], posVec3[1], posVec3[2]));
+		rotVec3[2] = (float)glfwGetTime() * 20;
+		m = glm::rotate(m, glm::radians(rotVec3[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+		m = glm::rotate(m, glm::radians(rotVec3[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+		m = glm::rotate(m, glm::radians(rotVec3[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+		m = glm::scale(m, glm::vec3(scaVec3[0], scaVec3[1], scaVec3[2]));
+
+		const float ratio = width / (float)height;
+		const glm::mat4 p = glm::perspective(45.0f, ratio, 0.1f, 1000.0f);
+
+		PerFrameData perFrameData[2] = { { p * m , false }, { p * m , true } };
+		glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize * 2, &perFrameData[0]);
+		
+		{
+			EASY_BLOCK("Mars Rendering");
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
+			glDrawArrays(GL_TRIANGLES, 0, numVertices);
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, kBufferSize, kBufferSize);
+			glDrawArrays(GL_TRIANGLES, 0, numVertices);
+		}
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -297,8 +344,8 @@ int main()
 	#pragma region Cleanup
 
 	// Clean up
-	glDeleteTextures(1, &texture);
 	glDeleteBuffers(1, &perFrameDataBuf);
+	glDeleteBuffers(1, &meshData);
 	glDeleteProgram(program);
 	glDeleteShader(shaderFragment);
 	glDeleteShader(shaderVertex);
