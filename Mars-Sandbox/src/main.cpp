@@ -17,6 +17,7 @@
 #include "EtcImage.h"
 #include "EtcFilter.h"
 #include "EtcFile.h"
+#include "meshoptimizer/src/meshoptimizer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"

@@ -67,5 +67,13 @@
             "type": "git",
             "url": "https://github.com/google/etc2comp.git"
         }
+    },
+    {
+        "name": "meshoptimizer",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/zeux/meshoptimizer.git",
+            "revision": "v0.17"
+        }
     }
 ]

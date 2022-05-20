@@ -19,6 +19,7 @@ workspace "Mars"
         include "../vendor/config/easy_profiler"
         include "../vendor/config/optick"
         include "../vendor/config/etc2comp"
+        include "../vendor/config/meshoptimizer"
 
     group ""
 
@@ -53,7 +54,8 @@ location "../%{prj.name}"
         "../vendor/Assimp/build/include",
         "../vendor/Etc2Comp/Etc2Comp/EtcLib/Etc",
         "../vendor/Etc2Comp/Etc2Comp/EtcLib/EtcCodec",
-        "../vendor/Etc2Comp/Etc2Comp/EtcTool"
+        "../vendor/Etc2Comp/Etc2Comp/EtcTool",
+        "../vendor/MeshOptimizer/"
     }
 
     links {
@@ -65,7 +67,8 @@ location "../%{prj.name}"
         "Optick",
         "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib",
         "Etc2Comp",
-        "Etc2CompTool"
+        "Etc2CompTool",
+        "MeshOptimizer"
     }
 
     defines {
