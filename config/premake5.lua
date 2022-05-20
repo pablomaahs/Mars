@@ -65,7 +65,6 @@ location "../%{prj.name}"
         "ImGui",
         "EasyProfiler",
         "Optick",
-        "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib",
         "Etc2Comp",
         "Etc2CompTool",
         "MeshOptimizer"
@@ -83,6 +82,14 @@ location "../%{prj.name}"
         runtime "Debug"
         symbols "on"
 
+        links {
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mtd.lib",
+        }
+
     filter "configurations:Release"
         runtime "Release"
         optimize "on"
+
+        links {
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib",
+        }
