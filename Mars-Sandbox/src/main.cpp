@@ -6,6 +6,7 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
@@ -179,9 +180,14 @@ int main()
 	};
 
 	const GLsizeiptr kBufferSize = sizeof(PerFrameData);
-	GLuint perFrameDataBuf;
-	glCreateBuffers(1, &perFrameDataBuf);
-	glNamedBufferStorage(perFrameDataBuf, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+	GLuint perFrameDataBuf1;
+	glCreateBuffers(1, &perFrameDataBuf1);
+	glNamedBufferStorage(perFrameDataBuf1, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+	GLuint perFrameDataBuf2;
+	glCreateBuffers(1, &perFrameDataBuf2);
+	glNamedBufferStorage(perFrameDataBuf2, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 	#pragma region ImGui
 
@@ -224,6 +230,7 @@ int main()
 	#pragma region Assimp Bunny
 	
 	std::vector<glm::vec3> bunnyPositions;
+	std::vector<unsigned int> bunnyIndices;
 
 	{
 		const aiScene* bunny = aiImportFile(
@@ -238,28 +245,66 @@ int main()
 		}
 
 		const aiMesh* mesh = bunny->mMeshes[0];
-		for (size_t i = 0; i != mesh->mNumFaces; i++)
+		for (unsigned i = 0; i != mesh->mNumFaces; i++)
 		{
-			const aiFace& face = mesh->mFaces[i];
-			const unsigned int idx[3] = { face.mIndices[0], face.mIndices[1], face.mIndices[2] };
-
 			for (int j = 0; j != 3; j++)
 			{
-				const aiVector3D v = mesh->mVertices[idx[j]];
-				bunnyPositions.push_back(glm::vec3(v.x, v.z, v.y));
+				bunnyIndices.push_back(mesh->mFaces[i].mIndices[j]);
 			}
 		}
+
+		for (unsigned i = 0; i != mesh->mNumVertices; i++)
+		{
+			const aiVector3D v = mesh->mVertices[i];
+			bunnyPositions.push_back(glm::vec3(v.x, v.z, v.y));
+		}
+
+		aiReleaseImport(bunny);
 	}
 
+	// Mesh Optimezer - https://github.com/zeux/meshoptimizer/blob/master/README.md#pipeline
+	// 1. Indexing - https://github.com/zeux/meshoptimizer/blob/master/README.md#indexing
+	std::vector<unsigned int> bunnyRemap(bunnyIndices.size());
+	const size_t bunnyVertexCount = meshopt_generateVertexRemap(bunnyRemap.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3));
+	std::vector<unsigned int> remappedIndices(bunnyIndices.size());
+	std::vector<glm::vec3> remappedVertices(bunnyVertexCount);
+	meshopt_remapIndexBuffer(remappedIndices.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyRemap.data());
+	meshopt_remapVertexBuffer(remappedVertices.data(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3), bunnyRemap.data());
+	// 2. Vertex cache optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-cache-optimization
+	meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), bunnyVertexCount);
+	// 3. Overdraw optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#overdraw-optimization
+	meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3), 1.05f);
+	// 4. Vertex fetch optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-fetch-optimization
+	meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3));
+	// 5. Simplification LOD - https://github.com/zeux/meshoptimizer/blob/master/README.md#simplification
+	const float threshold = 0.2f;
+	const size_t target_index_count = size_t(remappedIndices.size() * (size_t) threshold);
+	const float target_error = 1e-2f;
+	std::vector<unsigned int> idicesLod(remappedIndices.size());
+	idicesLod.resize(
+		meshopt_simplify(&idicesLod[0], remappedIndices.data(), remappedIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3), target_index_count, target_error)
+	);
+
+	bunnyIndices = remappedIndices;
+	bunnyPositions = remappedVertices;
+
+	const size_t sizeIndices = sizeof(unsigned int) * bunnyIndices.size();
+	const size_t sizeIndicesLod = sizeof(unsigned int) * idicesLod.size();
+	const size_t sizeVertices = sizeof(glm::vec3) * bunnyPositions.size();
+
+	// We can store Indices and Vertices in the same buffer as follows:
 	GLuint meshData;
 	glCreateBuffers(1, &meshData);
-	glNamedBufferStorage(meshData, sizeof(glm::vec3) * bunnyPositions.size(), bunnyPositions.data(), 0);
-	glVertexArrayVertexBuffer(VAO, 0, meshData, 0, sizeof(glm::vec3));
+	glNamedBufferStorage(meshData, sizeIndices + sizeIndicesLod + sizeVertices, nullptr, GL_DYNAMIC_STORAGE_BIT);
+	glNamedBufferSubData(meshData, 0							, sizeIndices		, bunnyIndices.data());
+	glNamedBufferSubData(meshData, sizeIndices					, sizeIndicesLod	, idicesLod.data());
+	glNamedBufferSubData(meshData, sizeIndices + sizeIndicesLod	, sizeVertices		, bunnyPositions.data());
+
+	glVertexArrayElementBuffer(VAO, meshData);
+	glVertexArrayVertexBuffer(VAO, 0, meshData, sizeIndices + sizeIndicesLod, sizeof(glm::vec3));
 	glEnableVertexArrayAttrib(VAO, 0);
 	glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
 	glVertexArrayAttribBinding(VAO, 0, 0);
-
-	const int numVertices = static_cast<int>(bunnyPositions.size());
 
 	#pragma endregion
 
@@ -284,14 +329,27 @@ int main()
 
 		// 2. Properties
 		bool show_window = false;
-		ImGui::Begin("Properties", &show_window);
+		ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiCond_Always);
+		ImGui::Begin("Properties 1", &show_window, ImGuiWindowFlags_NoResize);
 		ImGui::LabelText("", "Transform");
-		static float posVec3[3] = { 0.0f, -0.8f, -2.5f };
+		static float posVec3[3] = { 0.8f, -0.8f, -2.5f };
 		ImGui::InputFloat3("Position", posVec3);
 		static float rotVec3[3] = { -80.0f, 0.0f, 145.0f };
 		ImGui::InputFloat3("Rotation", rotVec3);
-		static float scaVec3[3] = { 1.0f, 1.0f, 1.0f };
+		static float scaVec3[3] = { 0.7f, 0.7f, 0.7f };
 		ImGui::InputFloat3("Scale", scaVec3);
+		ImGui::Separator();
+		ImGui::End();
+
+		ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiCond_Always);
+		ImGui::Begin("Properties 2", &show_window, ImGuiWindowFlags_NoResize);
+		ImGui::LabelText("", "Transform");
+		static float posVec3_2[3] = { -0.8f, -0.8f, -2.5f };
+		ImGui::InputFloat3("Position", posVec3_2);
+		static float rotVec3_2[3] = { -80.0f, 0.0f, 145.0f };
+		ImGui::InputFloat3("Rotation", rotVec3_2);
+		static float scaVec3_2[3] = { 0.7f, 0.7f, 0.7f };
+		ImGui::InputFloat3("Scale", scaVec3_2);
 		ImGui::Separator();
 		ImGui::End();
 
@@ -313,29 +371,55 @@ int main()
 			glfwMakeContextCurrent(backup_current_context);
 		}
 
-		glm::mat4 m = glm::translate(glm::mat4(1.0f), glm::vec3(posVec3[0], posVec3[1], posVec3[2]));
+		glm::mat4 m1 = glm::translate(glm::mat4(1.0f), glm::vec3(posVec3[0], posVec3[1], posVec3[2]));
 		rotVec3[2] = (float)glfwGetTime() * 20;
-		m = glm::rotate(m, glm::radians(rotVec3[0]), glm::vec3(1.0f, 0.0f, 0.0f));
-		m = glm::rotate(m, glm::radians(rotVec3[1]), glm::vec3(0.0f, 1.0f, 0.0f));
-		m = glm::rotate(m, glm::radians(rotVec3[2]), glm::vec3(0.0f, 0.0f, 1.0f));
-		m = glm::scale(m, glm::vec3(scaVec3[0], scaVec3[1], scaVec3[2]));
+		m1 = glm::rotate(m1, glm::radians(rotVec3[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+		m1 = glm::rotate(m1, glm::radians(rotVec3[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+		m1 = glm::rotate(m1, glm::radians(rotVec3[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+		m1 = glm::scale(m1, glm::vec3(scaVec3[0], scaVec3[1], scaVec3[2]));
+
+		glm::mat4 m2 = glm::translate(glm::mat4(1.0f), glm::vec3(posVec3_2[0], posVec3_2[1], posVec3_2[2]));
+		rotVec3_2[2] = (float)glfwGetTime() * 20;
+		m2 = glm::rotate(m2, glm::radians(rotVec3_2[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+		m2 = glm::rotate(m2, glm::radians(rotVec3_2[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+		m2 = glm::rotate(m2, glm::radians(rotVec3_2[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+		m2 = glm::scale(m2, glm::vec3(scaVec3_2[0], scaVec3_2[1], scaVec3_2[2]));
 
 		const float ratio = width / (float)height;
 		const glm::mat4 p = glm::perspective(45.0f, ratio, 0.1f, 1000.0f);
 
-		PerFrameData perFrameData[2] = { { p * m , false }, { p * m , true } };
-		glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize * 2, &perFrameData[0]);
+		PerFrameData perFrameData1[2] = { { p * m1 , false }, { p * m1 , true } };
+		glNamedBufferSubData(perFrameDataBuf1, 0, kBufferSize * 2, &perFrameData1[0]);
+
+		PerFrameData perFrameData2[2] = { { p * m2 , false }, { p * m2 , true } };
+		glNamedBufferSubData(perFrameDataBuf2, 0, kBufferSize * 2, &perFrameData2[0]);
 		
 		{
 			EASY_BLOCK("Mars Rendering");
 
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
-			glDrawArrays(GL_TRIANGLES, 0, numVertices);
+			{
+				EASY_BLOCK("Full Object");
 
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, kBufferSize, kBufferSize);
-			glDrawArrays(GL_TRIANGLES, 0, numVertices);
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf1, 0, kBufferSize);
+				glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
+
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf1, kBufferSize, kBufferSize);
+				glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
+			}
+
+			{
+				EASY_BLOCK("LOD Object");
+
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf2, 0, kBufferSize);
+				glDrawElements(GL_TRIANGLES, idicesLod.size(), GL_UNSIGNED_INT, (void*)sizeIndices);
+
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf2, kBufferSize, kBufferSize);
+				glDrawElements(GL_TRIANGLES, idicesLod.size(), GL_UNSIGNED_INT, (void*)sizeIndices);
+			}
 		}
 
 		glfwSwapBuffers(window);
@@ -345,7 +429,8 @@ int main()
 	#pragma region Cleanup
 
 	// Clean up
-	glDeleteBuffers(1, &perFrameDataBuf);
+	glDeleteBuffers(1, &perFrameDataBuf1);
+	glDeleteBuffers(1, &perFrameDataBuf2);
 	glDeleteBuffers(1, &meshData);
 	glDeleteProgram(program);
 	glDeleteShader(shaderFragment);

@@ -24,7 +24,7 @@ workspace "Mars"
     group ""
 
 project "Mars-Sandbox"
-location "../%{prj.name}"
+    location "../%{prj.name}"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++17"
