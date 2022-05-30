@@ -75,5 +75,13 @@
             "url": "https://github.com/zeux/meshoptimizer.git",
             "revision": "v0.17"
         }
+    }, 
+    {
+        "name": "vulkan_headers",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+            "revision": "v1.3.211"
+        }
     }
 ]
