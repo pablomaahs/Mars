@@ -1,5 +1,7 @@
 #include "mspch.h"
 
+#include "gltrace/GL.h"
+
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -88,89 +90,84 @@ int main()
 		{
 			glfwSetWindowShouldClose(window, true);
 		}
-		if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
-		{
-			int i_width, i_height;
-			glfwGetFramebufferSize(window, &i_width, &i_height);
-			uint8_t* ptr = (uint8_t*)malloc(i_width * i_height * 4);
-			glReadPixels(0, 0, i_width, i_height, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
-			stbi_write_png("screenshot.png", i_width, i_height, 4, ptr, 0);
-			free(ptr);
-		}
 	});
 
 	glfwMakeContextCurrent(window);
 	gladLoadGL();
 	glfwSwapInterval(1);
 
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_POLYGON_OFFSET_LINE);
-	glPolygonOffset(-1.0f, -1.0f);
+	GL4API api;
+	GetAPI4(&api, [](const char* func) -> void* { return (void*)glfwGetProcAddress(func); });
+	InjectAPITracer4(&api);
+
+	api.glEnable(GL_DEPTH_TEST);
+	api.glEnable(GL_POLYGON_OFFSET_LINE);
+	api.glPolygonOffset(-1.0f, -1.0f);
 
 	// Preparing to Render
 	GLuint VAO;
-	glCreateVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	api.glCreateVertexArrays(1, &VAO);
+	api.glBindVertexArray(VAO);
 
 	#pragma endregion
 
 	#pragma region Shaders
 
-	const GLuint shaderVertex = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(shaderVertex, 1, &shaderVertexSource, nullptr);
-	glCompileShader(shaderVertex);
+	const GLuint shaderVertex = api.glCreateShader(GL_VERTEX_SHADER);
+	api.glShaderSource(shaderVertex, 1, &shaderVertexSource, nullptr);
+	api.glCompileShader(shaderVertex);
 
 	GLint isCompiled = 0;
-	glGetShaderiv(shaderVertex, GL_COMPILE_STATUS, &isCompiled);
+	api.glGetShaderiv(shaderVertex, GL_COMPILE_STATUS, &isCompiled);
 	if (isCompiled == GL_FALSE)
 	{
 		GLint maxLength = 0;
-		glGetShaderiv(shaderVertex, GL_INFO_LOG_LENGTH, &maxLength);
+		api.glGetShaderiv(shaderVertex, GL_INFO_LOG_LENGTH, &maxLength);
 
 		std::vector<GLchar> infoLog(maxLength);
-		glGetShaderInfoLog(shaderVertex, maxLength, &maxLength, &infoLog[0]);
+		api.glGetShaderInfoLog(shaderVertex, maxLength, &maxLength, &infoLog[0]);
 
 		std::cout << infoLog.data() << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
-	const GLuint shaderFragment = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(shaderFragment, 1, &shaderFragmentSource, nullptr);
-	glCompileShader(shaderFragment);
+	const GLuint shaderFragment = api.glCreateShader(GL_FRAGMENT_SHADER);
+	api.glShaderSource(shaderFragment, 1, &shaderFragmentSource, nullptr);
+	api.glCompileShader(shaderFragment);
 
-	glGetShaderiv(shaderFragment, GL_COMPILE_STATUS, &isCompiled);
+	api.glGetShaderiv(shaderFragment, GL_COMPILE_STATUS, &isCompiled);
 	if (isCompiled == GL_FALSE)
 	{
 		GLint maxLength = 0;
-		glGetShaderiv(shaderFragment, GL_INFO_LOG_LENGTH, &maxLength);
+		api.glGetShaderiv(shaderFragment, GL_INFO_LOG_LENGTH, &maxLength);
 
 		std::vector<GLchar> infoLog(maxLength);
-		glGetShaderInfoLog(shaderFragment, maxLength, &maxLength, &infoLog[0]);
+		api.glGetShaderInfoLog(shaderFragment, maxLength, &maxLength, &infoLog[0]);
 
 		std::cout << infoLog.data() << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
-	const GLuint program = glCreateProgram();
-	glAttachShader(program, shaderVertex);
-	glAttachShader(program, shaderFragment);
-	glLinkProgram(program);
+	const GLuint program = api.glCreateProgram();
+	api.glAttachShader(program, shaderVertex);
+	api.glAttachShader(program, shaderFragment);
+	api.glLinkProgram(program);
 
 	GLint isLinked = 0;
-	glGetProgramiv(program, GL_LINK_STATUS, (int*)&isLinked);
+	api.glGetProgramiv(program, GL_LINK_STATUS, (int*)&isLinked);
 	if (isLinked == GL_FALSE)
 	{
 		GLint maxLength = 0;
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+		api.glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
 
 		std::vector<GLchar> infoLog(maxLength);
-		glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
+		api.glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 
 		std::cout << infoLog.data() << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
-	glUseProgram(program);
+	api.glUseProgram(program);
 
 	#pragma endregion
 
@@ -182,8 +179,8 @@ int main()
 	const GLsizeiptr kBufferSize = sizeof(PerFrameData);
 
 	GLuint perFrameDataBuf;
-	glCreateBuffers(1, &perFrameDataBuf);
-	glNamedBufferStorage(perFrameDataBuf, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
+	api.glCreateBuffers(1, &perFrameDataBuf);
+	api.glNamedBufferStorage(perFrameDataBuf, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 	#pragma region ImGui
 
@@ -281,16 +278,16 @@ int main()
 
 	// We can store Indices and Vertices in the same buffer as follows:
 	GLuint meshData;
-	glCreateBuffers(1, &meshData);
-	glNamedBufferStorage(meshData, sizeIndices + sizeVertices	, nullptr, GL_DYNAMIC_STORAGE_BIT);
-	glNamedBufferSubData(meshData, 0							, sizeIndices		, bunnyIndices.data());
-	glNamedBufferSubData(meshData, sizeIndices					, sizeVertices		, bunnyPositions.data());
+	api.glCreateBuffers(1, &meshData);
+	api.glNamedBufferStorage(meshData, sizeIndices + sizeVertices	, nullptr, GL_DYNAMIC_STORAGE_BIT);
+	api.glNamedBufferSubData(meshData, 0							, sizeIndices		, bunnyIndices.data());
+	api.glNamedBufferSubData(meshData, sizeIndices					, sizeVertices		, bunnyPositions.data());
 
-	glVertexArrayElementBuffer(VAO, meshData);
-	glVertexArrayVertexBuffer(VAO, 0, meshData, sizeIndices, sizeof(glm::vec3));
-	glEnableVertexArrayAttrib(VAO, 0);
-	glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
-	glVertexArrayAttribBinding(VAO, 0, 0);
+	api.glVertexArrayElementBuffer(VAO, meshData);
+	api.glVertexArrayVertexBuffer(VAO, 0, meshData, sizeIndices, sizeof(glm::vec3));
+	api.glEnableVertexArrayAttrib(VAO, 0);
+	api.glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	api.glVertexArrayAttribBinding(VAO, 0, 0);
 
 	#pragma endregion
 
@@ -301,9 +298,9 @@ int main()
 
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		glViewport(0, 0, width, height);
-		glClearColor(.7f, .5f, .2f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		api.glViewport(0, 0, width, height);
+		api.glClearColor(.7f, .5f, .2f, 1.0f);
+		api.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
@@ -356,7 +353,7 @@ int main()
 		const glm::mat4 p = glm::perspective(45.0f, ratio, 0.1f, 1000.0f);
 
 		PerFrameData perFrameData[2] = { { p * m , false }, { p * m , true } };
-		glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize * 2, &perFrameData[0]);
+		api.glNamedBufferSubData(perFrameDataBuf, 0, kBufferSize * 2, &perFrameData[0]);
 		
 		{
 			EASY_BLOCK("Mars Rendering");
@@ -364,13 +361,13 @@ int main()
 			{
 				EASY_BLOCK("Full Object");
 
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
-				glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
+				api.glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				api.glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, 0, kBufferSize);
+				api.glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
 
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-				glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, kBufferSize, kBufferSize);
-				glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
+				api.glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				api.glBindBufferRange(GL_UNIFORM_BUFFER, 0, perFrameDataBuf, kBufferSize, kBufferSize);
+				api.glDrawElements(GL_TRIANGLES, bunnyIndices.size(), GL_UNSIGNED_INT, 0);
 			}
 		}
 
@@ -381,12 +378,12 @@ int main()
 	#pragma region Cleanup
 
 	// Clean up
-	glDeleteBuffers(1, &perFrameDataBuf);
-	glDeleteBuffers(1, &meshData);
-	glDeleteProgram(program);
-	glDeleteShader(shaderFragment);
-	glDeleteShader(shaderVertex);
-	glDeleteVertexArrays(1, &VAO);
+	api.glDeleteBuffers(1, &perFrameDataBuf);
+	api.glDeleteBuffers(1, &meshData);
+	api.glDeleteProgram(program);
+	api.glDeleteShader(shaderFragment);
+	api.glDeleteShader(shaderVertex);
+	api.glDeleteVertexArrays(1, &VAO);
 
 	glfwDestroyWindow(window);
 	glfwTerminate();
