@@ -1,7 +1,5 @@
 #include "mspch.h"
 
-#include "gltrace/GL.h"
-
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -17,40 +15,15 @@
 #include "assimp/cimport.h"
 #include "meshoptimizer/src/meshoptimizer.h"
 
+#include "gltrace/GL.h"
+#include "glUtils/GLShader.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
-#pragma region Shader Source
-
-static const char* shaderVertexSource = R"(
-#version 460 core
-layout(std140, binding = 0) uniform PerFrameData
-{
-	uniform mat4 MVP;
-	uniform int isWireframe;
-};
-layout (location=0) in vec3 pos;
-layout (location=0) out vec3 color;
-void main()
-{
-	gl_Position = MVP * vec4(pos, 1.0);
-	color = isWireframe > 0 ? vec3(0.0f) : pos.xyz;
-}
-)";
-
-static const char* shaderFragmentSource = R"(
-#version 460 core
-layout (location=0) in vec3 color;
-layout (location=0) out vec4 out_FragColor;
-void main()
-{
-	out_FragColor = vec4(color, 1.0);
-};
-)";
-
-#pragma endregion
+const std::string SHADER_PATH = "./rsc/shaders/";
 
 int main()
 {
@@ -112,63 +85,11 @@ int main()
 	#pragma endregion
 
 	#pragma region Shaders
+	GLShader vertexShader = GLShader((SHADER_PATH + "default.vert").c_str());
+	GLShader fragmentShader = GLShader((SHADER_PATH + "default.frag").c_str());
 
-	const GLuint shaderVertex = api.glCreateShader(GL_VERTEX_SHADER);
-	api.glShaderSource(shaderVertex, 1, &shaderVertexSource, nullptr);
-	api.glCompileShader(shaderVertex);
-
-	GLint isCompiled = 0;
-	api.glGetShaderiv(shaderVertex, GL_COMPILE_STATUS, &isCompiled);
-	if (isCompiled == GL_FALSE)
-	{
-		GLint maxLength = 0;
-		api.glGetShaderiv(shaderVertex, GL_INFO_LOG_LENGTH, &maxLength);
-
-		std::vector<GLchar> infoLog(maxLength);
-		api.glGetShaderInfoLog(shaderVertex, maxLength, &maxLength, &infoLog[0]);
-
-		std::cout << infoLog.data() << std::endl;
-		exit(EXIT_FAILURE);
-	}
-
-	const GLuint shaderFragment = api.glCreateShader(GL_FRAGMENT_SHADER);
-	api.glShaderSource(shaderFragment, 1, &shaderFragmentSource, nullptr);
-	api.glCompileShader(shaderFragment);
-
-	api.glGetShaderiv(shaderFragment, GL_COMPILE_STATUS, &isCompiled);
-	if (isCompiled == GL_FALSE)
-	{
-		GLint maxLength = 0;
-		api.glGetShaderiv(shaderFragment, GL_INFO_LOG_LENGTH, &maxLength);
-
-		std::vector<GLchar> infoLog(maxLength);
-		api.glGetShaderInfoLog(shaderFragment, maxLength, &maxLength, &infoLog[0]);
-
-		std::cout << infoLog.data() << std::endl;
-		exit(EXIT_FAILURE);
-	}
-
-	const GLuint program = api.glCreateProgram();
-	api.glAttachShader(program, shaderVertex);
-	api.glAttachShader(program, shaderFragment);
-	api.glLinkProgram(program);
-
-	GLint isLinked = 0;
-	api.glGetProgramiv(program, GL_LINK_STATUS, (int*)&isLinked);
-	if (isLinked == GL_FALSE)
-	{
-		GLint maxLength = 0;
-		api.glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
-
-		std::vector<GLchar> infoLog(maxLength);
-		api.glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
-
-		std::cout << infoLog.data() << std::endl;
-		exit(EXIT_FAILURE);
-	}
-
-	api.glUseProgram(program);
-
+	GLProgram program = GLProgram(vertexShader, fragmentShader);
+	program.useProgram();
 	#pragma endregion
 
 	struct PerFrameData {
@@ -380,9 +301,6 @@ int main()
 	// Clean up
 	api.glDeleteBuffers(1, &perFrameDataBuf);
 	api.glDeleteBuffers(1, &meshData);
-	api.glDeleteProgram(program);
-	api.glDeleteShader(shaderFragment);
-	api.glDeleteShader(shaderVertex);
 	api.glDeleteVertexArrays(1, &VAO);
 
 	glfwDestroyWindow(window);
