@@ -17,6 +17,7 @@
 
 #include "gltrace/GL.h"
 #include "glUtils/GLShader.h"
+#include "platform/opengl/msWindowGL.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -30,44 +31,15 @@ int main()
 	EASY_PROFILER_ENABLE;
 	EASY_MAIN_THREAD;
 
-	#pragma region Initialization
+	ms::MsWindowGL window(1024, 768, "OpenGL Window");
 
-	// Setup OpenGL context with GLFW and Glad
-	glfwSetErrorCallback([](int error, const char* description) {
-		std::cout << "Error: " << description << std::endl;
-	});
-
-	if (!glfwInit())
+	window.SetGLFWKeyCallback([](GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		exit(EXIT_FAILURE);
-	}
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	GLFWwindow* window = glfwCreateWindow(1024, 768, "Sandbox", nullptr, nullptr);
-	if (!window)
-	{
-		glfwTerminate();
-		exit(EXIT_FAILURE);
-	}
-
-	struct UserPointer {
-		void* obj;
-	} ptr;
-	glfwSetWindowUserPointer(window, &ptr);
-
-	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
 		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		{
 			glfwSetWindowShouldClose(window, true);
 		}
 	});
-
-	glfwMakeContextCurrent(window);
-	gladLoadGL();
-	glfwSwapInterval(1);
 
 	GL4API api;
 	GetAPI4(&api, [](const char* func) -> void* { return (void*)glfwGetProcAddress(func); });
@@ -81,8 +53,6 @@ int main()
 	GLuint VAO;
 	api.glCreateVertexArrays(1, &VAO);
 	api.glBindVertexArray(VAO);
-
-	#pragma endregion
 
 	#pragma region Shaders
 	GLShader vertexShader = GLShader((SHADER_PATH + "default.vert").c_str());
@@ -103,96 +73,63 @@ int main()
 	api.glCreateBuffers(1, &perFrameDataBuf);
 	api.glNamedBufferStorage(perFrameDataBuf, kBufferSize * 2, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
-	#pragma region ImGui
-
-	// ImGui Initialization
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-
-	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-	ImGuiStyle& style = ImGui::GetStyle();
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-	{
-		style.WindowRounding = 0.0f;
-		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-	}
-
-	// Setup Platform/Renderer backends
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 460 core");
-
-	ImFontConfig cfg = ImFontConfig();
-	cfg.FontDataOwnedByAtlas = false;
-	cfg.RasterizerMultiply = 1.5f;
-	cfg.SizePixels = 768.0f / 32.0f;
-	cfg.PixelSnapH = true;
-	cfg.OversampleH = 4;
-	cfg.OversampleV = 4;
-
-	//ImFont* font = io.Fonts->AddFontFromFileTTF("rsc/fonts/cour.ttf", cfg.SizePixels, &cfg);
-	//IM_ASSERT(font != NULL);
-
-	#pragma endregion
-
 	#pragma region Assimp Bunny
-	
+
 	std::vector<glm::vec3> bunnyPositions;
 	std::vector<unsigned int> bunnyIndices;
 
 	{
-		const aiScene* bunny = aiImportFile(
-			"rsc/models/bunny/bunny.obj",
-			aiProcess_Triangulate
-		);
+		EASY_BLOCK("Initialization");
 
-		if (!bunny || !bunny->HasMeshes())
 		{
-			std::cout << aiGetErrorString() << std::endl;
-			exit(EXIT_FAILURE);
-		}
+			const aiScene* bunny = aiImportFile(
+				"rsc/models/bunny/bunny.obj",
+				aiProcess_Triangulate
+			);
 
-		const aiMesh* mesh = bunny->mMeshes[0];
-		for (unsigned i = 0; i != mesh->mNumFaces; i++)
-		{
-			for (int j = 0; j != 3; j++)
+			if (!bunny || !bunny->HasMeshes())
 			{
-				bunnyIndices.push_back(mesh->mFaces[i].mIndices[j]);
+				std::cout << aiGetErrorString() << std::endl;
+				exit(EXIT_FAILURE);
 			}
+
+			const aiMesh* mesh = bunny->mMeshes[0];
+			for (unsigned i = 0; i != mesh->mNumFaces; i++)
+			{
+				for (int j = 0; j != 3; j++)
+				{
+					bunnyIndices.push_back(mesh->mFaces[i].mIndices[j]);
+				}
+			}
+
+			for (unsigned i = 0; i != mesh->mNumVertices; i++)
+			{
+				const aiVector3D v = mesh->mVertices[i];
+				bunnyPositions.push_back(glm::vec3(v.x, v.z, v.y));
+			}
+
+			aiReleaseImport(bunny);
 		}
 
-		for (unsigned i = 0; i != mesh->mNumVertices; i++)
-		{
-			const aiVector3D v = mesh->mVertices[i];
-			bunnyPositions.push_back(glm::vec3(v.x, v.z, v.y));
-		}
+		// Mesh Optimezer - https://github.com/zeux/meshoptimizer/blob/master/README.md#pipeline
+		// 1. Indexing - https://github.com/zeux/meshoptimizer/blob/master/README.md#indexing
+		std::vector<unsigned int> bunnyRemap(bunnyIndices.size());
+		const size_t bunnyVertexCount = meshopt_generateVertexRemap(bunnyRemap.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3));
+		std::vector<unsigned int> remappedIndices(bunnyIndices.size());
+		std::vector<glm::vec3> remappedVertices(bunnyVertexCount);
+		meshopt_remapIndexBuffer(remappedIndices.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyRemap.data());
+		meshopt_remapVertexBuffer(remappedVertices.data(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3), bunnyRemap.data());
+		// 2. Vertex cache optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-cache-optimization
+		meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), bunnyVertexCount);
+		// 3. Overdraw optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#overdraw-optimization
+		meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3), 1.05f);
+		// 4. Vertex fetch optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-fetch-optimization
+		meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3));
 
-		aiReleaseImport(bunny);
+		bunnyIndices = remappedIndices;
+		bunnyPositions = remappedVertices;
+
 	}
-
-	// Mesh Optimezer - https://github.com/zeux/meshoptimizer/blob/master/README.md#pipeline
-	// 1. Indexing - https://github.com/zeux/meshoptimizer/blob/master/README.md#indexing
-	std::vector<unsigned int> bunnyRemap(bunnyIndices.size());
-	const size_t bunnyVertexCount = meshopt_generateVertexRemap(bunnyRemap.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3));
-	std::vector<unsigned int> remappedIndices(bunnyIndices.size());
-	std::vector<glm::vec3> remappedVertices(bunnyVertexCount);
-	meshopt_remapIndexBuffer(remappedIndices.data(), bunnyIndices.data(), bunnyIndices.size(), bunnyRemap.data());
-	meshopt_remapVertexBuffer(remappedVertices.data(), bunnyPositions.data(), bunnyPositions.size(), sizeof(glm::vec3), bunnyRemap.data());
-	// 2. Vertex cache optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-cache-optimization
-	meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), bunnyVertexCount);
-	// 3. Overdraw optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#overdraw-optimization
-	meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3), 1.05f);
-	// 4. Vertex fetch optimization - https://github.com/zeux/meshoptimizer/blob/master/README.md#vertex-fetch-optimization
-	meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), bunnyIndices.size(), glm::value_ptr(remappedVertices[0]), bunnyVertexCount, sizeof(glm::vec3));
-
-	bunnyIndices = remappedIndices;
-	bunnyPositions = remappedVertices;
 
 	const size_t sizeIndices = sizeof(unsigned int) * bunnyIndices.size();
 	const size_t sizeVertices = sizeof(glm::vec3) * bunnyPositions.size();
@@ -200,9 +137,9 @@ int main()
 	// We can store Indices and Vertices in the same buffer as follows:
 	GLuint meshData;
 	api.glCreateBuffers(1, &meshData);
-	api.glNamedBufferStorage(meshData, sizeIndices + sizeVertices	, nullptr, GL_DYNAMIC_STORAGE_BIT);
-	api.glNamedBufferSubData(meshData, 0							, sizeIndices		, bunnyIndices.data());
-	api.glNamedBufferSubData(meshData, sizeIndices					, sizeVertices		, bunnyPositions.data());
+	api.glNamedBufferStorage(meshData, sizeIndices + sizeVertices, nullptr, GL_DYNAMIC_STORAGE_BIT);
+	api.glNamedBufferSubData(meshData, 0, sizeIndices, bunnyIndices.data());
+	api.glNamedBufferSubData(meshData, sizeIndices, sizeVertices, bunnyPositions.data());
 
 	api.glVertexArrayElementBuffer(VAO, meshData);
 	api.glVertexArrayVertexBuffer(VAO, 0, meshData, sizeIndices, sizeof(glm::vec3));
@@ -213,12 +150,14 @@ int main()
 	#pragma endregion
 
 	// Main Loop
-	while (!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(window.GetGLFWWindow()))
 	{
 		EASY_BLOCK("Main loop");
 
+		glfwPollEvents();
+
 		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(window.GetGLFWWindow(), &width, &height);
 		api.glViewport(0, 0, width, height);
 		api.glClearColor(.7f, .5f, .2f, 1.0f);
 		api.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -255,7 +194,7 @@ int main()
 		// Update and Render additional Platform Windows
 		// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
 		//  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
 			GLFWwindow* backup_current_context = glfwGetCurrentContext();
 			ImGui::UpdatePlatformWindows();
@@ -292,8 +231,7 @@ int main()
 			}
 		}
 
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+		glfwSwapBuffers(window.GetGLFWWindow());
 	}
 
 	#pragma region Cleanup
@@ -302,9 +240,6 @@ int main()
 	api.glDeleteBuffers(1, &perFrameDataBuf);
 	api.glDeleteBuffers(1, &meshData);
 	api.glDeleteVertexArrays(1, &VAO);
-
-	glfwDestroyWindow(window);
-	glfwTerminate();
 
 	profiler::dumpBlocksToFile("profiler_data.prof");
 	EASY_PROFILER_DISABLE;
