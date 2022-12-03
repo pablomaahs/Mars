@@ -75,13 +75,21 @@
             "url": "https://github.com/zeux/meshoptimizer.git",
             "revision": "v0.17"
         }
-    }, 
+    },
     {
-        "name": "vulkan_headers",
+        "name": "glslang",
         "source": {
             "type": "git",
-            "url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
-            "revision": "v1.3.211"
+            "url": "https://github.com/KhronosGroup/glslang.git",
+            "revision": "11.11.0"
+        }
+    },
+    {
+        "name": "volk",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/zeux/volk.git",
+            "revision": "1.2.170"
         }
     }
 ]

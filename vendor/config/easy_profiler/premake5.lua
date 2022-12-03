@@ -3,6 +3,10 @@ project "EasyProfiler"
     kind "StaticLib"
     language "C++"
     
+    removeconfigurations {
+        "Null"
+    }
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
@@ -48,56 +52,17 @@ project "EasyProfiler"
         "EASY_OPTION_LOG_ENABLED"
     }
     
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
-        staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
 
-project "EasyProfiler_Converter"
-    location "../../easy_profiler"
-    kind "ConsoleApp"
-    language "C++"
-    
-    targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
-    objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
-
-    files {
-        "../../easy_profiler/easy_profiler_converter/converter.cpp",
-        "../../easy_profiler/easy_profiler_converter/reader.cpp",
-        "../../easy_profiler/easy_profiler_converter/converter.h",
-        "../../easy_profiler/easy_profiler_converter/reader.h",
-        "../../easy_profiler/easy_profiler_converter/main.cpp"
-    }
-
-    includedirs {
-        "../../easy_profiler/easy_profiler_core/",
-        "../../easy_profiler/easy_profiler_core/include/",
-        "../../easy_profiler/easy_profiler_converter/include/"
-    }
-
-    defines {
-        "EASY_PROFILER_STATIC"
-    }
-
-    links {
-        "EasyProfiler"
-    }
-    
-    filter "system:windows"
-        systemversion "latest"
-        staticruntime "on"
-
-    filter "configurations:Debug"
-        runtime "Debug"
-        symbols "on"
-
-    filter "configurations:Release"
-        runtime "Release"
-        optimize "on"
+    filter {}

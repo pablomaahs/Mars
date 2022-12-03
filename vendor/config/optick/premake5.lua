@@ -3,10 +3,15 @@ project "Optick"
     kind "StaticLib"
     language "C++"
 
+    removeconfigurations {
+        "Null"
+    }
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
     includedirs {
+        "%{IncludeDir.VulkanDir}",
         "../../optick/optick/src"
     }
 
@@ -16,20 +21,28 @@ project "Optick"
 
     defines {
         "_CRT_SECURE_NO_WARNINGS",
-        "OPTICK_EXPORTS=0",
-        "OPTICK_ENABLE_GPU_VULKAN=0",
-        "OPTICK_ENABLE_GPU_D3D12=0",
-        "OPTICK_ENABLE_GPU=0"
+        "OPTICK_ENABLE_GPU"
     }
 
-    filter "system:windows"
+    libdirs {
+        "%{LibraryDir.VulkanSDK}"
+    }
+
+    links { 
+        "%{Library.Vulkan}"
+    }
+
+    filter "system:Windows"
         systemversion "latest"
-        staticruntime "On"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
+
+    filter {}

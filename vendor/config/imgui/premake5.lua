@@ -2,7 +2,7 @@ project "ImGui"
     location "../../imgui"
     kind "StaticLib"
     language "C++"
-    
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
@@ -10,26 +10,61 @@ project "ImGui"
         "../../imgui/imgui/*.h",
         "../../imgui/imgui/*.cpp",
         "../../imgui/imgui/backends/imgui_impl_glfw.cpp",
-        "../../imgui/imgui/backends/imgui_impl_opengl3.cpp"
     }
 
     includedirs {
-        "../../imgui",
-        "../../glfw/include"
+        "../../glfw/include",
+        "../../imgui/imgui"
     }
 
     defines {
         "_CRT_SECURE_NO_WARNINGS"
     }
+
+    filter "options:gfxapi=vulkan"
+        removeconfigurations {
+            "Debug",
+            "Release"
+        }
+
+        files {
+            "../../imgui/imgui/backends/imgui_impl_vulkan.cpp"
+        }
+
+        defines {
+            "IMGUI_IMPL_VULKAN_NO_PROTOTYPES"
+        }
+
+        includedirs {
+            "%{IncludeDir.VulkanDir}"
+        }
+
+        libdirs {
+            "%{LibraryDir.VulkanSDK}"
+        }
     
-    filter "system:windows"
+        links { 
+            "%{Library.Vulkan}"
+        }
+
+    filter "options:gfxapi=opengl"
+        removeconfigurations {
+            "Null"
+        }
+
+        files {
+            "../../imgui/imgui/backends/imgui_impl_opengl3.cpp"
+        }
+
+    filter "system:Windows"
         systemversion "latest"
-        staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"

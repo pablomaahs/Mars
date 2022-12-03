@@ -3,6 +3,10 @@ project "MeshOptimizer"
     kind "StaticLib"
     language "C++"
 
+    removeconfigurations {
+        "Null"
+    }
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
@@ -29,14 +33,18 @@ project "MeshOptimizer"
         "../../meshoptimizer/meshoptimizer/src/vfetchoptimizer.cpp"
     }
 
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
-        staticruntime "On"
+        staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
+
+    filter {}

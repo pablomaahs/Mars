@@ -21,6 +21,11 @@ namespace ms
 		MsWindow(const MsWindow& w) = delete;
 		MsWindow operator=(const MsWindow& w) = delete;
 
+		inline virtual GLFWwindow* GetGLFWWindow() const
+		{
+			return mWindow;
+		};
+
 	protected:
 		virtual void InitializeWindow() = 0;
 

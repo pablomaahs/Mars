@@ -4,24 +4,24 @@
 
 namespace ms
 {
-	class MsWindowGL : public MsWindow
+	class MsWindowVulkan : public MsWindow
 	{
 	public:
-		MsWindowGL(unsigned int w, unsigned int h, std::string name)
+		MsWindowVulkan(unsigned int w, unsigned int h, std::string name)
 			: MsWindow(w, h, name)
 		{
 			InitializeWindow();
 			InitializImGui();
 		};
-		~MsWindowGL();
+		virtual ~MsWindowVulkan();
 
-		MsWindowGL(const MsWindowGL& w) = delete;
-		MsWindowGL operator=(const MsWindowGL& w) = delete;
+		MsWindowVulkan(const MsWindowVulkan& w) = delete;
+		MsWindowVulkan operator=(const MsWindowVulkan& w) = delete;
 
 		inline GLFWwindow* GetGLFWWindow() { return mWindow; }
 		void SetGLFWKeyCallback(GLFWkeyfun);
 
-	private:
+	protected:
 		void InitializeWindow() override;
 		void InitializImGui();
 	};

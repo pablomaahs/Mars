@@ -3,6 +3,10 @@ project "GLFW"
     kind "StaticLib"
     language "C"
 
+    removeconfigurations {
+        "Null"
+    }
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
 
@@ -11,9 +15,9 @@ project "GLFW"
     }
 
     files {
+        "../../glfw/include/glfw/**.h",
         "../../glfw/src/internal.h",
         "../../glfw/src/mappings.h",
-        "../../glfw/include/glfw/**.h",
         "../../glfw/src/context.c",
         "../../glfw/src/init.c",
         "../../glfw/src/input.c",
@@ -22,9 +26,14 @@ project "GLFW"
         "../../glfw/src/window.c"
     }
 
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
         staticruntime "On"
+
+        defines { 
+            "_GLFW_WIN32",
+            "_CRT_SECURE_NO_WARNINGS"
+        }
 
         files {
             "../../glfw/src/win32_platform.h",
@@ -43,16 +52,12 @@ project "GLFW"
             "../../glfw/src/osmesa_context.c"
         }
 
-        defines { 
-            "_GLFW_WIN32",
-            --"_GLFW_BUILD_DLL",
-            "_CRT_SECURE_NO_WARNINGS"
-        }
-
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"

@@ -18,6 +18,8 @@ xcopy .\src\optick\src\         ..\optick\optick\src                /Q /S /I /R 
 xcopy .\src\assimp\             ..\assimp                           /Q /S /I /R /Y
 xcopy .\src\etc2comp\           ..\etc2comp\etc2comp\               /Q /S /I /R /Y
 xcopy .\src\meshoptimizer\      ..\meshoptimizer\meshoptimizer\     /Q /S /I /R /Y
+xcopy .\src\glslang\            ..\glslang\                         /Q /S /I /R /Y
+xcopy .\src\volk\               ..\volk\                            /Q /S /I /R /Y
 
 echo Done
 popd

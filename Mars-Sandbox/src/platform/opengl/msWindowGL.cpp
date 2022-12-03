@@ -1,22 +1,12 @@
 #include "mspch.h"
 
 #include "glad/glad.h"
-#include "imgui/imgui.h"
-#include "imgui/backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_opengl3.h"
 
 #include "platform/common/msWindow.h"
 #include "msWindowGL.h"
 
 namespace ms
 {
-	MsWindowGL::MsWindowGL(unsigned int w, unsigned int h, std::string name) :
-		MsWindow(w, h, name)
-	{
-		InitializeWindow();
-		InitializImGui();
-	}
-
 	MsWindowGL::~MsWindowGL()
 	{
 		ImGui_ImplGlfw_Shutdown();

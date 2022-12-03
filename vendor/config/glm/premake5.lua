@@ -2,9 +2,17 @@ project "Glm"
     location "../../glm"
     kind "StaticLib"
     language "C"
-    
+
+    removeconfigurations {
+        "Null"
+    }
+
     targetdir   ("../../../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../../../bin-int/%{OutputDir}/%{prj.name}")
+
+    includedirs {
+        "../../glm"
+    }
 
     files {
         "../../glm/glm/*.hpp",
@@ -26,22 +34,20 @@ project "Glm"
         "../../glm/util/glm.natvis"
     }
 
-    includedirs {
-        "../../glm"
-    }
-
-    defines {
-        "_CRT_SECURE_NO_WARNINGS"
-    }
-    
     filter "system:windows"
         systemversion "latest"
-        staticruntime "on"
+        staticruntime "On"
+
+        defines {
+            "_CRT_SECURE_NO_WARNINGS"
+        }
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"

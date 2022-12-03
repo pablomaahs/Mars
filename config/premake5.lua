@@ -1,48 +1,42 @@
+include "Dependencies.lua"
+
+newoption {
+    trigger     = "gfxapi",
+    value       = "API",
+    description = "Choose a particular 3D API for rendering",
+    default     = "vulkan",
+    category    = "Build Options",
+    allowed     = {
+       { "opengl", "OpenGL" },
+       { "vulkan", "Vulkan" }
+    }
+ }
+
+print("Building GFX '" .. _OPTIONS["gfxapi"] .. "'...")
+
 workspace "Mars"
     location ".."
     architecture "x86_64"
     startproject "Mars-Sandbox"
 
     configurations {
+        "Null",
         "Debug",
         "Release"
     }
 
-    OutputDir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
-
-    VULKAN_SDK = os.getenv("VULKAN_SDK")
-
-    LibraryDir = {}
-    LibraryDir["VulkanSDK"] = "%{VULKAN_SDK}/Lib"
-
-    Library = {}
-    Library["Vulkan"]                   = "%{LibraryDir.VulkanSDK}/vulkan-1.lib"
-    Library["VulkanUtils"]              = "%{LibraryDir.VulkanSDK}/VkLayer_utils.lib"
-    -- Debug
-    Library["ShaderC_Debug"]            = "%{LibraryDir.VulkanSDK_Debug}/shaderc_sharedd.lib"
-    Library["SPIRV_Cross_Debug"]        = "%{LibraryDir.VulkanSDK_Debug}/spirv-cross-cored.lib"
-    Library["SPIRV_Cross_GLSL_Debug"]   = "%{LibraryDir.VulkanSDK_Debug}/spirv-cross-glsld.lib"
-    Library["SPIRV_Tools_Debug"]        = "%{LibraryDir.VulkanSDK_Debug}/SPIRV-Toolsd.lib"
-    -- Release
-    Library["ShaderC_Release"]          = "%{LibraryDir.VulkanSDK}/shaderc_shared.lib"
-    Library["SPIRV_Cross_Release"]      = "%{LibraryDir.VulkanSDK}/spirv-cross-core.lib"
-    Library["SPIRV_Cross_GLSL_Release"] = "%{LibraryDir.VulkanSDK}/spirv-cross-glsl.lib"
-
-    flags {
-		"MultiProcessorCompile"
-	}
-
     group "Dependencies"
-        include "../vendor/config/glfw"
         include "../vendor/config/glad"
+        include "../vendor/config/glfw"
         include "../vendor/config/glm"
-        include "../vendor/config/stb"
-        include "../vendor/config/imgui"
+        include "../vendor/config/glslang"
+        include "../vendor/config/volk"
         include "../vendor/config/easy_profiler"
+        include "../vendor/config/meshoptimizer"
         include "../vendor/config/optick"
         include "../vendor/config/etc2comp"
-        include "../vendor/config/meshoptimizer"
-        include "../vendor/config/vulkan_headers"
+        include "../vendor/config/stb"
+        include "../vendor/config/imgui"
 
     group ""
 
@@ -50,76 +44,164 @@ project "Mars-Sandbox"
     location "../%{prj.name}"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++17"
-    staticruntime "on"
+    cppdialect "C++20"
+    staticruntime "off"
 
+    removeconfigurations {
+        "Null"
+    }
+
+    targetname  ("Mars")
     targetdir   ("../bin/%{OutputDir}/%{prj.name}")
     objdir      ("../bin-int/%{OutputDir}/%{prj.name}")
 
     pchheader "mspch.h"
     pchsource "../%{prj.name}/src/mspch.cpp"
 
+    ignoredefaultlibraries {
+        "LIBCMT",
+        "LIBCMTD"
+    }
+
     files {
-        "../%{prj.name}/src/**.h",
-        "../%{prj.name}/src/**.cpp"
+        "../%{prj.name}/src/*.h",
+        "../%{prj.name}/src/*.cpp",
+        "../%{prj.name}/src/platform/common/*.h",
+        "../%{prj.name}/src/platform/common/*.cpp",
+        "../%{prj.name}/src/platform/common/utils/*.h",
+        "../%{prj.name}/src/platform/common/utils/*.cpp",
     }
 
     includedirs {
-        "../%{prj.name}/src",
-        "../vendor/GLFW/include",
-        "../vendor/Glad/include",
+        "../%{prj.name}/src/",
+        "../vendor/GLFW/include/",
         "../vendor/Glm/",
-        "../vendor/Stb/",
-        "../vendor/ImGui/",
-        "../vendor/Easy_Profiler/easy_profiler_core/include",
-        "../vendor/Optick",
-        "../vendor/Assimp/include",
-        "../vendor/Assimp/build/include",
-        "../vendor/Etc2Comp/Etc2Comp/EtcLib/Etc",
-        "../vendor/Etc2Comp/Etc2Comp/EtcLib/EtcCodec",
-        "../vendor/Etc2Comp/Etc2Comp/EtcTool",
-        "../vendor/MeshOptimizer/",
-        "../vendor/vulkan_headers/include"
+        "../vendor/easy_profiler/easy_profiler_core/include/",
+        "../vendor/meshoptimizer/",
+        "../vendor/optick/",
+        "../vendor/stb/",
+        "../vendor/assimp/include/",
+        "../vendor/assimp/build/include/"
     }
 
     links {
         "GLFW",
-        "Glad",
         "Glm",
-        "ImGui",
         "EasyProfiler",
-        "Optick",
-        "Etc2Comp",
-        "Etc2CompTool",
         "MeshOptimizer",
-        "%{Library.Vulkan}",
-        "%{Library.VulkanUtils}"
-    }
-
-    libdirs {
-        "%{LibraryDir.VulkanSDK}"
+        "Optick",
+        "Etc2Comp"
     }
 
     defines {
-        "DISABLE_EASY_PROFILER",
-        "DISABLE_OPTICK"
+        --"ENABLE_MESH_OPTIMIZER",
+        --"ENABLE_EASY_PROFILER",
+        --"ENABLE_OPTICK",
+        "GLFW_INCLUDE_NONE",
+        "_CRT_SECURE_NO_WARNINGS"
     }
 
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
-
-        links {
-            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mtd.lib",
-        }
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
+
+    filter "options:gfxapi=opengl"
+        files {
+            "../%{prj.name}/src/platform/opengl/*.h",
+            "../%{prj.name}/src/platform/opengl/*.cpp",
+            "../%{prj.name}/src/platform/opengl/utils/*.h",
+            "../%{prj.name}/src/platform/opengl/utils/*.cpp",
+            "../%{prj.name}/src/platform/opengl/gltrace/*.h",
+            "../%{prj.name}/src/platform/opengl/gltrace/*.cpp"
+        }
+
+        includedirs {
+            "../vendor/Glad/include",
+            "../vendor/imgui/imgui"
+        }
 
         links {
-            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib",
+            "Glad",
+            "ImGui"
         }
+
+        defines {
+            "GFX_OPENGL"
+        }
+
+    filter { "configurations:Debug", "options:gfxapi=Opengl" }
+        links {
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mtd.lib"
+        }
+
+    filter { "configurations:Release", "options:gfxapi=Opengl" }
+        links {
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib"
+        }
+
+    filter "options:gfxapi=vulkan"
+        files {
+            "../%{prj.name}/src/platform/vulkan/*.h",
+            "../%{prj.name}/src/platform/vulkan/*.cpp",
+            "../%{prj.name}/src/platform/vulkan/utils/*.h",
+            "../%{prj.name}/src/platform/vulkan/utils/*.cpp"
+        }
+
+        includedirs {
+            "%{IncludeDir.VulkanDir}",
+            "../vendor/glslang/glslang/",
+            "../vendor/glslang/StandAlone/",
+            "../vendor/volk/"
+        }
+
+        links {
+            --"Volk"
+        }
+
+        defines {
+            "GFX_VULKAN",
+            "VK_NO_PROTOTYPES",
+        }
+
+        linkoptions {
+            "/ignore:4099"
+        }
+
+    filter { "configurations:Debug", "options:gfxapi=Vulkan" }
+        links {
+            "%{Library.D_glslang}",
+            "%{Library.D_SPIRV}",
+            "%{Library.D_MachineIndependent}",
+            "%{Library.D_OGLCompiler}",
+            "%{Library.D_OSDependent}",
+            "%{Library.D_GenericCodeGen}",
+            "%{Library.D_glslangDefaultResourceLimits}",
+            "%{Library.D_SPIRV_Tools}",
+            "%{Library.D_SPIRV_Tools_opt}",
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mtd.lib"
+        }
+
+    filter { "configurations:Release", "options:gfxapi=Vulkan" }
+        links {
+            "%{Library.glslang}",
+            "%{Library.SPIRV}",
+            "%{Library.MachineIndependent}",
+            "%{Library.OGLCompiler}",
+            "%{Library.OSDependent}",
+            "%{Library.GenericCodeGen}",
+            "%{Library.glslangDefaultResourceLimits}",
+            "%{Library.SPIRV_Tools}",
+            "%{Library.SPIRV_Tools_opt}",
+            "../bin/%{OutputDir}/%{prj.name}/assimp-vc142-mt.lib"
+        }
+
+    filter {}

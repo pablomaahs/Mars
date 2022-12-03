@@ -18,21 +18,25 @@ project "Etc2Comp"
         "../../etc2comp/etc2comp/EtcLib/EtcCodec"
     }
 
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
         staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
+
+    filter {}
 
 project "Etc2CompTool"
     location "../../etc2comp/etc2comp"
-    kind "StaticLib"
+    kind "ConsoleApp"
     language "C++"
 
     characterset ("MBCS")
@@ -58,14 +62,18 @@ project "Etc2CompTool"
         "Etc2Comp"
     }
 
-    filter "system:windows"
+    filter "system:Windows"
         systemversion "latest"
         staticruntime "on"
 
     filter "configurations:Debug"
         runtime "Debug"
-        symbols "on"
+        optimize "Off"
+        symbols "On"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "on"
+        optimize "On" -- "Size" "Speed"
+        symbols "On" -- "Off"
+
+    filter {}

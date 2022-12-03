@@ -1,8 +1,4 @@
-﻿#if !defined(_CRT_SECURE_NO_WARNINGS)
-#	define _CRT_SECURE_NO_WARNINGS 1
-#endif // _CRT_SECURE_NO_WARNINGS
-
-#include <mspch.h>
+﻿#include <mspch.h>
 
 #include "Utils.h"
 
@@ -49,7 +45,10 @@ std::string readShaderFile(const char* fileName)
 	const auto bytesinfile = ftell(file);
 	fseek(file, 0L, SEEK_SET);
 
+#pragma warning(suppress : 26451)
+#pragma warning(suppress : 6255)
 	char* buffer = (char*)alloca(bytesinfile + 1);
+#pragma warning(suppress : 6386)
 	const size_t bytesread = fread(buffer, 1, bytesinfile, file);
 	fclose(file);
 
@@ -59,6 +58,7 @@ std::string readShaderFile(const char* fileName)
 
 	if (bytesread > 3)
 	{
+#pragma warning(suppress : 6385)
 		if (!memcmp(buffer, BOM, 3))
 			memset(buffer, ' ', 3);
 	}
