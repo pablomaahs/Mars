@@ -11,6 +11,12 @@ namespace ms
         Initialize();
     }
 
+    MsAppVulkan::MsAppVulkan(unsigned int w, unsigned int h, std::string name)
+        : mWindow { w, h, name }
+    {
+        Initialize();
+    }
+
     void MsAppVulkan::Initialize()
     {
         createInstance(mVkInstance);

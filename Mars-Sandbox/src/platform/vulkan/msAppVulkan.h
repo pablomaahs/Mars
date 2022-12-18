@@ -11,13 +11,14 @@ namespace ms
 	{
 	public:
 		MsAppVulkan();
+		MsAppVulkan(unsigned int w, unsigned int h, std::string name);
 
 		void Run() override;
 
 	private:
 		void Initialize() override;
 
-		MsWindowVulkan mWindow{ WIDTH, HEIGHT, "Vulkan App" };
+		MsWindowVulkan		mWindow;
 		VkInstance mVkInstance;
 	};
 }

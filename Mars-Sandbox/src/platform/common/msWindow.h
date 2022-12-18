@@ -7,9 +7,9 @@
 
 namespace ms
 {
-	const unsigned int DEFAULT_WIDTH = 1024;
-	const unsigned int DEFAULT_HEIGHT = 768;
-	const std::string DEFAULT_NAME = "Sandbox";
+	static constexpr unsigned int DEFAULT_WIDTH  = 1024;
+	static constexpr unsigned int DEFAULT_HEIGHT = 768;
+	static constexpr const char*  DEFAULT_NAME   = "Sandbox";
 
 	class MsWindow
 	{
@@ -25,6 +25,9 @@ namespace ms
 		{
 			return mWindow;
 		};
+
+		inline const unsigned int GetWidth() { return mWidth; }
+		inline const unsigned int GetHeight() { return mHeight; }
 
 	protected:
 		virtual void InitializeWindow() = 0;

@@ -7,12 +7,19 @@ namespace ms
 	class MsWindowVulkan : public MsWindow
 	{
 	public:
+		MsWindowVulkan() : MsWindow()
+		{
+			InitializeWindow();
+			InitializImGui();
+		};
+
 		MsWindowVulkan(unsigned int w, unsigned int h, std::string name)
 			: MsWindow(w, h, name)
 		{
 			InitializeWindow();
 			InitializImGui();
 		};
+
 		virtual ~MsWindowVulkan();
 
 		MsWindowVulkan(const MsWindowVulkan& w) = delete;

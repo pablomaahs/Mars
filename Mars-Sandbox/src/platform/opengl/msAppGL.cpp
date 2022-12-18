@@ -12,6 +12,12 @@ namespace ms
         Initialize();
     }
 
+    MsAppGL::MsAppGL(unsigned int w, unsigned int h, std::string name)
+        : mWindow{ w, h, name }
+    {
+        Initialize();
+    }
+
     void MsAppGL::Initialize()
     {
         mWindow.SetGLFWKeyCallback(

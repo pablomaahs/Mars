@@ -19,9 +19,9 @@
 int main()
 {
 #ifdef GFX_VULKAN
-    ms::MsAppVulkan app{};
+    ms::MsAppVulkan app{ 800, 600, "Vulkan App"};
 #elif GFX_OPENGL
-    ms::MsAppGL app{};
+    ms::MsAppGL app{ 800, 600, "Open GL App" };
 #endif
 
     try

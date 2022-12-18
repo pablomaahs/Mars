@@ -7,6 +7,12 @@ namespace ms
 	class MsWindowGL : public MsWindow
 	{
 	public:
+		MsWindowGL() : MsWindow()
+		{
+			InitializeWindow();
+			InitializImGui();
+		};
+
 		MsWindowGL(unsigned int w, unsigned int h, std::string name)
 			: MsWindow(w, h, name)
 		{
