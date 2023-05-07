@@ -4,8 +4,22 @@
 
 #include "Include/glslang_c_interface.h"
 #include "ResourceLimits.h"
+#include "platform/common/utils/Utils.h"
 
 #include "volk.h"
+
+#define VK_CHECK(value)\
+    if (value != VK_SUCCESS)\
+    {\
+        CHECK(false, __FILE__, __LINE__);\
+    }
+
+#define VK_CHECK_RET(value)\
+    if (value != VK_SUCCESS)\
+    {\
+        CHECK(false, __FILE__, __LINE__);\
+    }\
+    return true;\
 
 namespace ms
 {
