@@ -13,12 +13,25 @@ namespace ms
 		MsAppVulkan();
 		MsAppVulkan(unsigned int w, unsigned int h, std::string name);
 
+		// Remove Copy Constructor and Copy Assignment Operator
+		MsAppVulkan(const MsAppVulkan&) = delete;
+		MsAppVulkan& operator=(const MsAppVulkan&) = delete;
+		// Remove Move Constructor and Move Assignment Operator
+		MsAppVulkan(MsAppVulkan&&) = delete;
+		MsAppVulkan& operator=(MsAppVulkan&&) = delete;
+
+		virtual ~MsAppVulkan();
+
 		void Run() override;
 
 	private:
 		void Initialize() override;
+		bool DrawOverlay();
+		void Destroy() override;
 
 		MsWindowVulkan		mWindow;
-		VkInstance mVkInstance;
+		VulkanInstance		mVulkanInstance;
+		VulkanRenderDevice	mVulkanRenderDevice;
+		VulkanState			mVulkanState;
 	};
 }

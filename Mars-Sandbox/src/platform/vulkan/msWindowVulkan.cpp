@@ -1,6 +1,8 @@
 #include "mspch.h"
 
 #include "msWindowVulkan.h"
+#include "volk.h"
+#include "platform/common/utils/Utils.h"
 
 namespace ms
 {
@@ -17,7 +19,9 @@ namespace ms
 
 	void MsWindowVulkan::InitializeWindow()
 	{
-		glfwInit();
+		ASSERT(volkInitialize() == VK_SUCCESS);
+		ASSERT(glfwInit() == GLFW_TRUE);
+		ASSERT(glfwVulkanSupported() == GLFW_TRUE);
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
