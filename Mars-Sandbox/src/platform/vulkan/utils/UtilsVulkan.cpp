@@ -986,7 +986,8 @@ bool CreateDescriptorPool(VkDevice device, uint32_t imageCount, uint32_t uniform
 
 bool CreateDescriptorSet(ms::VulkanRenderDevice& renderDevice, ms::VulkanState& state, uint32_t vertexBufferSize, uint32_t indexBufferSize)
 {
-    const std::array<VkDescriptorSetLayoutBinding, 4> bindings = {
+    const std::vector<VkDescriptorSetLayoutBinding> bindings
+    {
         VkDescriptorSetLayoutBinding{
             .binding = static_cast<uint32_t>(0),
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1069,7 +1070,7 @@ bool CreateDescriptorSet(ms::VulkanRenderDevice& renderDevice, ms::VulkanState& 
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
 
-        std::array<VkWriteDescriptorSet, 4> descriptorWrites = {
+        std::vector<VkWriteDescriptorSet> descriptorWrites = {
             VkWriteDescriptorSet
             {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1225,7 +1226,7 @@ bool CreateColorAndDepthRenderPass(const ms::VulkanRenderDevice& renderDevice, b
         .pPreserveAttachments = nullptr
     };
 
-    std::array<VkAttachmentDescription, 2> attachments =
+    std::vector<VkAttachmentDescription> attachments =
     {
         colorAttachment,
         depthAttachment
@@ -1470,7 +1471,7 @@ bool CreateColorAndDepthFramebuffers(const ms::VulkanRenderDevice& renderDevice,
     swapchainFramebuffers.resize(renderDevice.swapchainImageViews.size());
 
     for (size_t i = 0; i < renderDevice.swapchainImages.size(); i++) {
-        std::array<VkImageView, 2> attachments = {
+        std::vector<VkImageView> attachments = {
             renderDevice.swapchainImageViews[i],
             imageView
         };
@@ -1626,7 +1627,7 @@ bool FillCommandBuffers(ms::VulkanRenderDevice& renderDevice, ms::VulkanState& s
         .pInheritanceInfo = nullptr
     };
 
-    const std::array<VkClearValue, 2> clearValues =
+    const std::vector<VkClearValue> clearValues =
     {
         VkClearValue { .color = { 0.5f, 0.2f, 0.7f, 1.f } },
         VkClearValue { .depthStencil = {.depth = 1.0f, .stencil = 0 } }
