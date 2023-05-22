@@ -19,11 +19,14 @@ namespace ms
 			InitializeWindow();
 			InitializImGui();
 		};
-
 		virtual ~MsWindowVulkan();
 
-		MsWindowVulkan(const MsWindowVulkan& w) = delete;
-		MsWindowVulkan operator=(const MsWindowVulkan& w) = delete;
+		// Remove Copy Constructor and Copy Assignment Operator
+		MsWindowVulkan(const MsWindowVulkan&) = delete;
+		MsWindowVulkan& operator=(const MsWindowVulkan&) = delete;
+		// Remove Move Constructor and Move Assignment Operator
+		MsWindowVulkan(MsWindowVulkan&&) = delete;
+		MsWindowVulkan& operator=(MsWindowVulkan&&) = delete;
 
 		inline GLFWwindow* GetGLFWWindow() { return mWindow; }
 		void SetGLFWKeyCallback(GLFWkeyfun);

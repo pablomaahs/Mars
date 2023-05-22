@@ -26,7 +26,6 @@ namespace ms
 
 	private:
 		void Initialize() override;
-		bool DrawOverlay();
 		void Destroy() override;
 
 		MsWindowVulkan		mWindow;
