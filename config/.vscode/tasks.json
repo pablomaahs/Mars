@@ -11,6 +11,15 @@
             }
         },
         {
+            "label": "GenSln Win VS2022",
+            "command": "Start-Process -FilePath \"${workspaceFolder}\\..\\scripts\\GenSln_Win_VS2022.bat\" -Wait -NoNewWindow",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
             "label": "Run Bootstrap",
             "command": "Start-Process -FilePath \"${workspaceFolder}\\..\\scripts\\Run_Bootstrap.bat\" -Wait -NoNewWindow",
             "type": "shell",
