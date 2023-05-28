@@ -36,7 +36,7 @@ namespace ms
 		);
 	}
 
-	void MsWindowVulkan::InitializImGui()
+	void MsWindowVulkan::InitializeImGui()
 	{
 		
 	}

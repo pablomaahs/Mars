@@ -10,14 +10,14 @@ namespace ms
 		MsWindowVulkan() : MsWindow()
 		{
 			InitializeWindow();
-			InitializImGui();
+			InitializeImGui();
 		};
 
 		MsWindowVulkan(unsigned int w, unsigned int h, std::string name)
 			: MsWindow(w, h, name)
 		{
 			InitializeWindow();
-			InitializImGui();
+			InitializeImGui();
 		};
 		virtual ~MsWindowVulkan();
 
@@ -33,6 +33,6 @@ namespace ms
 
 	protected:
 		void InitializeWindow() override;
-		void InitializImGui();
+		void InitializeImGui();
 	};
 }
