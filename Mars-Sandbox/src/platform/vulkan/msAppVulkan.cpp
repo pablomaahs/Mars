@@ -6,6 +6,7 @@
 #include "platform/vulkan/vkVulkanClear.h"
 #include "platform/vulkan/vkVulkanFinish.h"
 #include "platform/vulkan/vkVulkanModelRenderer.h"
+#include "platform/vulkan/vkVulkanCanvas.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
@@ -100,6 +101,7 @@ namespace ms
         GLFWwindow* window = mWindow.GetGLFWWindow();
 
         std::unique_ptr<vkVulkanModelRenderer> model;
+        std::unique_ptr<vkVulkanCanvas> canvas2d;
         std::unique_ptr<vkVulkanClear> clear;
         std::unique_ptr<vkVulkanFinish> finish;
 
@@ -110,6 +112,7 @@ namespace ms
             glslang_initialize_process();
 
             model = std::make_unique<vkVulkanModelRenderer>(mVulkanRenderDevice, "./rsc/models/bunny/bunny.obj", "./rsc/textures/example/example.png", (uint32_t)sizeof(UniformBuffer));
+            canvas2d = std::make_unique<vkVulkanCanvas>(mVulkanRenderDevice, model->GetDepthTexture());
             clear = std::make_unique<vkVulkanClear>(mVulkanRenderDevice, model->GetDepthTexture());
             finish = std::make_unique<vkVulkanFinish>(mVulkanRenderDevice, model->GetDepthTexture());
 
@@ -118,6 +121,8 @@ namespace ms
             EASY_END_BLOCK;
             OPTICK_POP();
         }
+
+        canvas2d.get()->Line(glm::vec3(0.25f, 0.5f, 0.0f), glm::vec3(0.75f, 0.5f, 0.0f), glm::vec4(1.0f, 0.2f , 0.2f, 1.0f));
 
         while (!glfwWindowShouldClose(window))
         {
@@ -148,6 +153,9 @@ namespace ms
 
             model.get()->UpdateUniformBuffer(mVulkanRenderDevice, imageIndex, &ubo, sizeof(UniformBuffer));
 
+            canvas2d.get()->UpdateLinesBuffer(mVulkanRenderDevice, imageIndex);
+            canvas2d.get()->UpdateUniformBuffer(mVulkanRenderDevice, imageIndex, glm::ortho(0, 1, 1, 0, 1, 100), .0f);
+
             VkCommandBuffer commandBuffer = mVulkanRenderDevice.commandBuffers[imageIndex];
 
             const VkCommandBufferBeginInfo bi =
@@ -161,6 +169,7 @@ namespace ms
             VK_CHECK(vkBeginCommandBuffer(commandBuffer, &bi));
 
             clear.get()->FillCommandBuffer(commandBuffer, imageIndex);
+            canvas2d.get()->FillCommandBuffer(commandBuffer, imageIndex);
             model.get()->FillCommandBuffer(commandBuffer, imageIndex);
             finish.get()->FillCommandBuffer(commandBuffer, imageIndex);
 

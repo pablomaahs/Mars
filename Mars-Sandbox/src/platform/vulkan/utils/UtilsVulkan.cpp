@@ -1271,7 +1271,7 @@ bool CreateGraphicsPipeline(
     VkPrimitiveTopology topology,
     bool useDepth, bool useBlending, bool dynamicScissorState,
     int32_t customWidth, int32_t customHeight,
-    uint32_t numPatchControlPoints
+    uint32_t numPatchControlPoints, bool hasGeom
 )
 {
     std::vector <ms::ShaderModule> shaderModules{ 3 };
@@ -1311,6 +1311,7 @@ bool CreateGraphicsPipeline(
         shaderStages.push_back(stage);
     }
 
+    if (hasGeom)
     {
         _CreateShaderModule(renderDevice.device, &shaderModules[2], shaderFiles[2], GLSLANG_STAGE_GEOMETRY);
 

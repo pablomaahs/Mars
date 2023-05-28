@@ -261,7 +261,7 @@ bool CreateGraphicsPipeline(
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST /* defaults to triangles*/,
     bool useDepth = true, bool useBlending = true, bool dynamicScissorState = false,
     int32_t customWidth = -1, int32_t customHeight = -1,
-    uint32_t numPatchControlPoints = 0
+    uint32_t numPatchControlPoints = 0, bool hasGeom = true
 );
 
 bool CreateGraphicsPipeline(
