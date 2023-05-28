@@ -27,9 +27,9 @@ namespace ms
 
 		const std::vector<std::string>& shaderFiles =
 		{
-			"rsc/shaders/vkPVPDefault.vert",
-			"rsc/shaders/vkPVPDefault.frag",
-			"rsc/shaders/vkPVPDefault.geom"
+			"./rsc/shaders/vkPVPDefault.vert",
+			"./rsc/shaders/vkPVPDefault.frag",
+			"./rsc/shaders/vkPVPDefault.geom"
 		};
 		CreateGraphicsPipeline(renderDevice, mRenderPass, mPipelineLayout, &mGraphicsPipeline, shaderFiles);
 	}

@@ -109,7 +109,7 @@ namespace ms
 
             glslang_initialize_process();
 
-            model = std::make_unique<vkVulkanModelRenderer>(mVulkanRenderDevice, "rsc/models/bunny/bunny.obj", "rsc/textures/example/example.png", (uint32_t)sizeof(UniformBuffer));
+            model = std::make_unique<vkVulkanModelRenderer>(mVulkanRenderDevice, "./rsc/models/bunny/bunny.obj", "./rsc/textures/example/example.png", (uint32_t)sizeof(UniformBuffer));
             clear = std::make_unique<vkVulkanClear>(mVulkanRenderDevice, model->GetDepthTexture());
             finish = std::make_unique<vkVulkanFinish>(mVulkanRenderDevice, model->GetDepthTexture());
 

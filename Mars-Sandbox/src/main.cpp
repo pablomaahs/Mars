@@ -31,6 +31,8 @@ int main()
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        int a; std::cin >> a;
+
         return EXIT_FAILURE;
     }
 
