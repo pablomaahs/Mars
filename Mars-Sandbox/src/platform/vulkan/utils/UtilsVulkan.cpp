@@ -3,6 +3,8 @@
 #include "UtilsVulkan.h"
 #include "platform/common/utils/Utils.h"
 
+#include "vkCommandBufferMgr.h"
+#include "vkBufferMgr.h"
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
@@ -451,70 +453,45 @@ bool CreateTexturedVertexBuffer(const ms::VulkanRenderDevice& renderDevice, cons
     VkDeviceSize bufferSize = *vertexBufferSize + *indexBufferSize;
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingMemory;
+
     ASSERT(
-        CreateBuffer(
-            renderDevice.device, renderDevice.physicalDevice, bufferSize,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            stagingBuffer, stagingMemory
+        ms::vkBufferMgr::CreateBuffer(
+            static_cast<const VkDevice*>(&renderDevice.device), static_cast<const VkPhysicalDevice*>(&renderDevice.physicalDevice), bufferSize,
+            stagingBuffer, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            stagingMemory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         )
     );
 
-    void* data;
-    VK_CHECK(vkMapMemory(renderDevice.device, stagingMemory, 0, bufferSize, 0, &data));
-    memcpy(data, vertices.data(), *vertexBufferSize);
-    memcpy((unsigned char*)data + *vertexBufferSize, indices.data(), *indexBufferSize);
-    vkUnmapMemory(renderDevice.device, stagingMemory);
+    std::vector<ms::vkCommandBufferMgr::UploadBufferDataCopy> bufferDataCopyVec;
+    bufferDataCopyVec.push_back(
+        ms::vkCommandBufferMgr::UploadBufferDataCopy{ .deviceOffset = 0, .data = vertices.data(), .dataSize = *vertexBufferSize }
+    );
+
+    bufferDataCopyVec.push_back(
+        ms::vkCommandBufferMgr::UploadBufferDataCopy{ .deviceOffset = *vertexBufferSize, .data = indices.data(), .dataSize = *indexBufferSize }
+    );
+    ms::vkCommandBufferMgr::UploadBufferData(static_cast<const VkDevice*>(&renderDevice.device), &stagingMemory, bufferSize, bufferDataCopyVec);
 
     ASSERT(
-        CreateBuffer(
-            renderDevice.device, renderDevice.physicalDevice, bufferSize,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            *storageBuffer, *storageBufferMemory
+        ms::vkBufferMgr::CreateBuffer(
+            static_cast<const VkDevice*>(&renderDevice.device), static_cast<const VkPhysicalDevice*>(&renderDevice.physicalDevice), bufferSize,
+            *storageBuffer      , VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            *storageBufferMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         )
     );
 
-    _CopyBuffer(renderDevice, stagingBuffer, *storageBuffer, bufferSize);
-    vkDestroyBuffer(renderDevice.device, stagingBuffer, nullptr);
-    vkFreeMemory(renderDevice.device, stagingMemory, nullptr);
+    const VkBufferCopy bufferCopyParams = { .srcOffset = 0, .dstOffset = 0, .size = bufferSize };
+    ms::vkCommandBufferMgr::CmdCopyBuffer(
+        static_cast<const VkDevice*>(&renderDevice.device), renderDevice.commandPool, static_cast<const VkQueue*>(&renderDevice.graphicsQueue),
+        &stagingBuffer, storageBuffer, &bufferCopyParams
+    );
+
+    ms::vkBufferMgr::DestroyBuffer(static_cast<const VkDevice*>(&renderDevice.device), stagingBuffer, stagingMemory);
 
     return true;
 }
 
 #pragma region 3 Textured Vertex Buffer
-
-// Create the GPU Buffer
-bool CreateBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-{
-    const VkBufferCreateInfo bufferInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .size = size,
-        .usage = usage,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices = nullptr
-    };
-
-    VK_CHECK(vkCreateBuffer(device, &bufferInfo, nullptr, &buffer));
-
-    VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
-
-    VkMemoryAllocateInfo allocateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .allocationSize = memoryRequirements.size,
-        .memoryTypeIndex = _FindMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, properties)
-    };
-
-    VK_CHECK(vkAllocateMemory(device, &allocateInfo, nullptr, &bufferMemory));
-    VK_CHECK_RET(vkBindBufferMemory(device, buffer, bufferMemory, 0));
-}
 
 bool CreateUniformBuffers(ms::VulkanState& vkState, ms::VulkanRenderDevice& rendererDevice)
 {
@@ -524,13 +501,11 @@ bool CreateUniformBuffers(ms::VulkanState& vkState, ms::VulkanRenderDevice& rend
 
     for (size_t i = 0; i < rendererDevice.swapchainImages.size(); i++)
     {
-        if (
-            !CreateBuffer(rendererDevice.device, rendererDevice.physicalDevice, bufferSize,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                vkState.uniformBuffers[i], vkState.uniformBuffersMemory[i]
-            )
-            )
+        if (!ms::vkBufferMgr::CreateBuffer(
+            static_cast<const VkDevice*>(&rendererDevice.device), static_cast<const VkPhysicalDevice*>(&rendererDevice.physicalDevice), bufferSize,
+            vkState.uniformBuffers[i]       , VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            vkState.uniformBuffersMemory[i] , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        ))
         {
             ASSERT(false);
             return false;
@@ -538,78 +513,6 @@ bool CreateUniformBuffers(ms::VulkanState& vkState, ms::VulkanRenderDevice& rend
     }
 
     return true;
-}
-
-uint32_t _FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
-{
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
-
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-    {
-        if ((typeFilter & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            return i;
-        }
-    }
-
-    return 0xFFFFFFFF;
-}
-
-void _CopyBuffer(const ms::VulkanRenderDevice & renderDevice, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-    VkCommandBuffer commandBuffer;
-
-    // Begin Single time Command Buffer
-    const VkCommandBufferAllocateInfo allocateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .commandPool = renderDevice.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
-    };
-
-    VK_CHECK(vkAllocateCommandBuffers(renderDevice.device, &allocateInfo, &commandBuffer));
-
-    const VkCommandBufferBeginInfo beginInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr
-    };
-
-    VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-    const VkBufferCopy copyParam =
-    {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size = size
-    };
-
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyParam);
-
-    // End Single time Command Buffer
-    VK_CHECK(vkEndCommandBuffer(commandBuffer));
-
-    const VkSubmitInfo submitInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = nullptr,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr
-    };
-
-    VK_CHECK(vkQueueSubmit(renderDevice.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK(vkQueueWaitIdle(renderDevice.graphicsQueue));
-    vkFreeCommandBuffers(renderDevice.device, renderDevice.commandPool, 1, &commandBuffer);
 }
 
 #pragma endregion
@@ -621,7 +524,9 @@ bool CreateTextureImage(const ms::VulkanRenderDevice & device, const char* fileN
 
     stbi_uc* pixels = stbi_load(fileName, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    //ASSERT(texChannels == STBI_rgb_alpha);
+
+    VkDeviceSize imageSize = texWidth * texHeight * STBI_rgb_alpha;
 
     if (!pixels)
     {
@@ -633,36 +538,104 @@ bool CreateTextureImage(const ms::VulkanRenderDevice & device, const char* fileN
     VkDeviceMemory stagingMemory;
 
     ASSERT(
-        CreateBuffer(
-            device.device, device.physicalDevice, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            stagingBuffer, stagingMemory
+        ms::vkBufferMgr::CreateBuffer(
+            static_cast<const VkDevice*>(&device.device), static_cast<const VkPhysicalDevice*>(&device.physicalDevice), imageSize,
+            stagingBuffer, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            stagingMemory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         )
     );
 
-    void* data;
-    VK_CHECK(vkMapMemory(device.device, stagingMemory, 0, imageSize, 0, &data));
-    #pragma warning(suppress : 6387)
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-
-    vkUnmapMemory(device.device, stagingMemory);
+    ms::vkCommandBufferMgr::UploadBufferDataCopy dataCopy{ .deviceOffset = 0, .data = pixels, .dataSize = static_cast<size_t>(imageSize) };
+    ms::vkCommandBufferMgr::UploadBufferData(static_cast<const VkDevice*>(&device.device), &stagingMemory, dataCopy);
 
     ASSERT(
-        _CreateImage(
-            device.device, device.physicalDevice, texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory
+        ms::vkBufferMgr::CreateImage(
+            static_cast<const VkDevice*>(&device.device), static_cast<const VkPhysicalDevice*>(&device.physicalDevice),
+            texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+            textureImage        , VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            textureImageMemory  , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         )
     );
 
-    _TransitionImageLayout(device, textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    const VkImageMemoryBarrier barrierUndefToTransferDst =
+    {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = 0,
+        .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = textureImage,
+        .subresourceRange = VkImageSubresourceRange
+        {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
 
-    _CopyBufferToImage(device, stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    ms::vkCommandBufferMgr::CmdPipelineBarrier(
+        static_cast<const VkDevice*>(&device.device), device.commandPool, static_cast<const VkQueue*>(&device.graphicsQueue),
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+        nullptr, nullptr, &barrierUndefToTransferDst
+    );
 
-    _TransitionImageLayout(device, textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    const VkBufferImageCopy region =
+    {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = VkImageSubresourceLayers
+        {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        },
+        .imageOffset = VkOffset3D {.x = 0, .y = 0, .z = 0 },
+        .imageExtent = VkExtent3D
+        {
+            .width = static_cast<uint32_t>(texWidth),
+            .height = static_cast<uint32_t>(texHeight),
+            .depth = 1
+        }
+    };
 
-    vkDestroyBuffer(device.device, stagingBuffer, nullptr);
-    vkFreeMemory(device.device, stagingMemory, nullptr);
+    ms::vkCommandBufferMgr::CmdCopyBufferToImage(
+        static_cast<const VkDevice*>(&device.device), device.commandPool, static_cast<const VkQueue*>(&device.graphicsQueue),
+        &stagingBuffer, &textureImage, &region
+    );
+
+    const VkImageMemoryBarrier barrierTransferDstToShaderReadOnly =
+    {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = textureImage,
+        .subresourceRange = VkImageSubresourceRange
+        {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    ms::vkCommandBufferMgr::CmdPipelineBarrier(
+        static_cast<const VkDevice*>(&device.device), device.commandPool, static_cast<const VkQueue*>(&device.graphicsQueue),
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        nullptr, nullptr, &barrierTransferDstToShaderReadOnly
+    );
+
+    ms::vkBufferMgr::DestroyBuffer(static_cast<const VkDevice*>(&device.device), stagingBuffer, stagingMemory);
 
     stbi_image_free(pixels);
     return true;
@@ -696,112 +669,32 @@ bool CreateTextureSampler(VkDevice device, VkSampler* sampler)
     VK_CHECK_RET(vkCreateSampler(device, &samplerInfo, nullptr, sampler));
 }
 
-#pragma region 4 Texture Image and Texture Sampler
-
-bool _CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+bool CreateDepthResources(const ms::VulkanRenderDevice & renderDevice, uint32_t width, uint32_t height, ms::VulkanImage& depth)
 {
-    const VkImageCreateInfo imageCreateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .imageType = VK_IMAGE_TYPE_2D,
-        .format = format,
-        .extent = VkExtent3D {
-            .width = width, .height = height, .depth = 1
-        },
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .tiling = tiling,
-        .usage = usage,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount  = 0,
-        .pQueueFamilyIndices = nullptr,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-    };
+    VkFormat depthFormat = _FindDepthFormat(renderDevice.physicalDevice);
+    ASSERT(
+        ms::vkBufferMgr::CreateImage(
+            static_cast<const VkDevice*>(&renderDevice.device), static_cast<const VkPhysicalDevice*>(&renderDevice.physicalDevice),
+            width, height, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+            depth.image, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            depth.imageMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        )
+    );
+    ASSERT(CreateImageView(renderDevice.device, depth.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, &depth.imageView));
 
-    VK_CHECK(vkCreateImage(device, &imageCreateInfo, nullptr, &image));
-    VkMemoryRequirements memoryRequirements;
-    vkGetImageMemoryRequirements(device, image, &memoryRequirements);
-
-    const VkMemoryAllocateInfo memoryAllocateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .allocationSize = memoryRequirements.size,
-        .memoryTypeIndex = _FindMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, properties)
-    };
-
-    VK_CHECK(vkAllocateMemory(device, &memoryAllocateInfo, nullptr, &imageMemory));
-    vkBindImageMemory(device, image, imageMemory, 0);
-
-    return true;
-}
-
-void _TransitionImageLayout(const ms::VulkanRenderDevice & renderDevice, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount/* = 1*/, uint32_t mipLevels/* = 1*/)
-{
-    VkCommandBuffer commandBuffer;
-
-    const VkCommandBufferAllocateInfo allocateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .commandPool = renderDevice.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
-    };
-
-    VK_CHECK(vkAllocateCommandBuffers(renderDevice.device, &allocateInfo, &commandBuffer));
-
-    const VkCommandBufferBeginInfo beginInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr
-    };
-
-    VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-    _TransitionImageLayoutCmd(commandBuffer, image, format, oldLayout, newLayout, layerCount, mipLevels);
-    
-    // End Single time Command Buffer
-    VK_CHECK(vkEndCommandBuffer(commandBuffer));
-
-    const VkSubmitInfo submitInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = nullptr,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr
-    };
-
-    VK_CHECK(vkQueueSubmit(renderDevice.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK(vkQueueWaitIdle(renderDevice.graphicsQueue));
-    vkFreeCommandBuffers(renderDevice.device, renderDevice.commandPool, 1, &commandBuffer);
-}
-
-void _TransitionImageLayoutCmd(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount, uint32_t mipLevels)
-{
-    VkImageMemoryBarrier barrier =
+    VkImageMemoryBarrier barrierUndefToDepthStencil =
     {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .pNext = nullptr,
         .srcAccessMask = 0,
-        .dstAccessMask = 0,
-        .oldLayout = oldLayout,
-        .newLayout = newLayout,
+        .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = VkImageSubresourceRange {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .image = depth.image,
+        .subresourceRange = VkImageSubresourceRange
+        {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
@@ -809,128 +702,16 @@ void _TransitionImageLayoutCmd(VkCommandBuffer commandBuffer, VkImage image, VkF
         }
     };
 
-    VkPipelineStageFlags sourceStage, destinationStage;
-
-    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    if (depthFormat == VK_FORMAT_D32_SFLOAT_S8_UINT || depthFormat == VK_FORMAT_D24_UNORM_S8_UINT)
     {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        if (_HasStencilComponent(format))
-        {
-            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-    }
-    else
-    {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrierUndefToDepthStencil.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
     }
 
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-    {
-        barrier.srcAccessMask   = 0;
-        barrier.dstAccessMask   = VK_ACCESS_TRANSFER_WRITE_BIT;
-        sourceStage             = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage        = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-    {
-        barrier.srcAccessMask   = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-        sourceStage             = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destinationStage        = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
-    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-    {
-        barrier.srcAccessMask   = 0;
-        barrier.dstAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        sourceStage             = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage        = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    }
-
-    vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-}
-
-bool _HasStencilComponent(VkFormat format)
-{
-    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-}
-
-void _CopyBufferToImage(ms::VulkanRenderDevice renderDevice, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-{
-    VkCommandBuffer commandBuffer;
-
-    const VkCommandBufferAllocateInfo allocateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .commandPool = renderDevice.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
-    };
-
-    VK_CHECK(vkAllocateCommandBuffers(renderDevice.device, &allocateInfo, &commandBuffer));
-
-    const VkCommandBufferBeginInfo beginInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr
-    };
-
-    VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-    const VkBufferImageCopy region = {
-        .bufferOffset = 0,
-        .bufferRowLength = 0,
-        .bufferImageHeight = 0,
-        .imageSubresource = VkImageSubresourceLayers {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .mipLevel = 0,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        },
-        .imageOffset = VkOffset3D { .x = 0, .y = 0, .z = 0 },
-        .imageExtent = VkExtent3D {
-            .width = width, .height = height, .depth = 1
-        }
-    };
-
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    // End Single time Command Buffer
-    VK_CHECK(vkEndCommandBuffer(commandBuffer));
-
-    const VkSubmitInfo submitInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = nullptr,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr
-    };
-
-    VK_CHECK(vkQueueSubmit(renderDevice.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK(vkQueueWaitIdle(renderDevice.graphicsQueue));
-    vkFreeCommandBuffers(renderDevice.device, renderDevice.commandPool, 1, &commandBuffer);
-}
-
-#pragma endregion
-
-bool CreateDepthResources(const ms::VulkanRenderDevice & renderDevice, uint32_t width, uint32_t height, ms::VulkanImage& depth)
-{
-    VkFormat depthFormat = _FindDepthFormat(renderDevice.physicalDevice);
-    ASSERT(
-        _CreateImage(renderDevice.device, renderDevice.physicalDevice, width, height, depthFormat,
-            VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            depth.image, depth.imageMemory
-        )
+    ms::vkCommandBufferMgr::CmdPipelineBarrier(
+        static_cast<const VkDevice*>(&renderDevice.device), renderDevice.commandPool, static_cast<const VkQueue*>(&renderDevice.graphicsQueue),
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0,
+        nullptr, nullptr, &barrierUndefToDepthStencil
     );
-    ASSERT(CreateImageView(renderDevice.device, depth.image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, &depth.imageView));
-    _TransitionImageLayout(renderDevice, depth.image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     return true;
 }
@@ -1599,24 +1380,6 @@ void _SaveSPIRVBinaryFile(const char* filename, unsigned int* code, size_t size)
 }
 
 #pragma endregion
-
-void UploadBufferData(uint32_t currentImage, ms::VulkanState& state, ms::VulkanRenderDevice& rendererDevice, const ms::UniformBuffer& ubo)
-{
-    void* data = nullptr;
-    vkMapMemory(rendererDevice.device, state.uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(rendererDevice.device, state.uniformBuffersMemory[currentImage]);
-}
-
-void UploadBufferData(const ms::VulkanRenderDevice& rendererDevice, const VkDeviceMemory& bufferMemory, VkDeviceSize deviceOffset, const void* data, const size_t dataSize)
-{
-    EASY_FUNCTION();
-
-    void* mapperData = nullptr;
-    vkMapMemory(rendererDevice.device, bufferMemory, deviceOffset, dataSize, 0, &mapperData);
-    memcpy(mapperData, data, dataSize);
-    vkUnmapMemory(rendererDevice.device, bufferMemory);
-}
 
 bool FillCommandBuffers(ms::VulkanRenderDevice& renderDevice, ms::VulkanState& state, const unsigned int indexBufferSize, const unsigned int width, const unsigned int height, size_t i)
 {
