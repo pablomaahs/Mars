@@ -23,7 +23,7 @@ namespace ms
 			VkDeviceMemory& imageMemory,	VkMemoryPropertyFlags	properties
 		);
 
-	public:
+	private:
 		static uint32_t FindMemoryType(const VkPhysicalDevice* device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	};
 }
