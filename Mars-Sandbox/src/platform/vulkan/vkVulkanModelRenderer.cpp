@@ -3,6 +3,7 @@
 #include "platform/vulkan/vkVulkanModelRenderer.h"
 
 #include "platform/vulkan/utils/UtilsVulkan.h"
+#include "platform/vulkan/utils/vkCommandBufferMgr.h"
 
 namespace ms
 {
@@ -62,7 +63,9 @@ namespace ms
 
 	void vkVulkanModelRenderer::UpdateUniformBuffer(const VulkanRenderDevice& renderDevice, uint32_t currentImage, const void* data, size_t dataSize)
 	{
-		UploadBufferData(renderDevice, mUniformBuffersMemory[currentImage], 0, data, dataSize);
+        vkCommandBufferMgr::UploadBufferDataCopy bufferCopy{ .deviceOffset = 0, .data = data, .dataSize = dataSize };
+
+        vkCommandBufferMgr::UploadBufferData(static_cast<const VkDevice*>(&renderDevice.device), &mUniformBuffersMemory[currentImage], bufferCopy);
 	}
 
 	bool vkVulkanModelRenderer::CreateDescriptorSet(const VulkanRenderDevice& renderDevice, uint32_t uniformDataSize)

@@ -2,6 +2,8 @@
 
 #include "vkRenderBase.h"
 
+#include "platform/vulkan/utils/vkBufferMgr.h"
+
 namespace ms
 {
 	vkRenderBase::~vkRenderBase()
@@ -58,13 +60,11 @@ namespace ms
 
 		for (size_t i = 0; i < vulkanRenderDevice.swapchainImages.size(); i++)
 		{
-			if (
-				!CreateBuffer(vulkanRenderDevice.device, vulkanRenderDevice.physicalDevice, uniformDataSize,
-					VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-					VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-					mUniformBuffers[i], mUniformBuffersMemory[i]
-				)
-			)
+			if (!vkBufferMgr::CreateBuffer(
+				static_cast<const VkDevice*>(&vulkanRenderDevice.device), static_cast<const VkPhysicalDevice*>(&vulkanRenderDevice.physicalDevice), uniformDataSize,
+				mUniformBuffers[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				mUniformBuffersMemory[i], VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			))
 			{
 				ASSERT(false);
 				return false;

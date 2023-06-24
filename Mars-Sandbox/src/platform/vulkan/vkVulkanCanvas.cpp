@@ -2,6 +2,9 @@
 
 #include "platform/vulkan/vkVulkanCanvas.h"
 
+#include "platform/vulkan/utils/vkCommandBufferMgr.h"
+#include "platform/vulkan/utils/vkBufferMgr.h"
+
 namespace ms
 {
 	vkVulkanCanvas::vkVulkanCanvas(VulkanRenderDevice& renderDevice, VulkanImage depthTexture)
@@ -15,10 +18,11 @@ namespace ms
 		for (size_t i = 0; i < imgCount; i++)
 		{
 			ASSERT(
-				CreateBuffer(renderDevice.device, renderDevice.physicalDevice, kMaxLinesDataSize,
-					VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-					VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-					mLinesStorageBuffer[i], mLinesStorageBufferMemory[i])
+				vkBufferMgr::CreateBuffer(
+					static_cast<const VkDevice*>(&renderDevice.device), static_cast<const VkPhysicalDevice*>(&renderDevice.physicalDevice), kMaxLinesDataSize,
+					mLinesStorageBuffer[i], VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+					mLinesStorageBufferMemory[i], VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+				)
 			);
 		}
 
@@ -63,13 +67,17 @@ namespace ms
 			return;
 
 		VkDeviceSize bufferSize = mLines.size() * sizeof(VertexData);
-		UploadBufferData(renderDevice, mLinesStorageBufferMemory[currentImage], 0, mLines.data(), bufferSize);
+		vkCommandBufferMgr::UploadBufferDataCopy bufferCopy{ .deviceOffset = 0, .data = mLines.data(), .dataSize = bufferSize };
+
+		vkCommandBufferMgr::UploadBufferData(static_cast<const VkDevice*>(&renderDevice.device), &mLinesStorageBufferMemory[currentImage], bufferCopy);
 	}
 
 	void vkVulkanCanvas::UpdateUniformBuffer(const VulkanRenderDevice& renderDevice, uint32_t currentImage, const glm::mat4& mp, float time)
 	{
 		const UniformBuffer ubo = { .mvp = mp, .time = time };
-		UploadBufferData(renderDevice, mUniformBuffersMemory[currentImage], 0, &ubo, sizeof(UniformBuffer));
+		vkCommandBufferMgr::UploadBufferDataCopy bufferCopy{ .deviceOffset = 0, .data = &ubo, .dataSize = sizeof(UniformBuffer) };
+
+		vkCommandBufferMgr::UploadBufferData(static_cast<const VkDevice*>(&renderDevice.device), &mUniformBuffersMemory[currentImage], bufferCopy);
 	}
 
 	bool vkVulkanCanvas::CreateDescriptorSet(const VulkanRenderDevice& renderDevice)
