@@ -25,6 +25,8 @@
 
 namespace ms
 {
+    class vkInstance;
+
     enum eRenderPassBit : uint8_t
     {
         // clear the attachment
@@ -159,19 +161,7 @@ namespace ms
 
 #pragma endregion
 
-void CreateVulkanInstance(VkInstance* instance);
-
-#pragma region 1 Vulkan Instance
-
-bool SetupDebugCallbaks(VkInstance* instance, VkDebugUtilsMessengerEXT* messenger, VkDebugReportCallbackEXT* reportCallback);
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL _VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT secerity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* calbackData, void* userData);
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL _VulkanDebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* userData);
-
-#pragma endregion
-
-bool CreateVulkanRenderDevice(ms::VulkanInstance* instance, ms::VulkanRenderDevice* renderDevice, uint32_t width, uint32_t height, std::function<bool(VkPhysicalDevice)> selector, VkPhysicalDeviceFeatures deviceFeatures);
+bool CreateVulkanRenderDevice(ms::vkInstance* instance, ms::VulkanRenderDevice* renderDevice, uint32_t width, uint32_t height, std::function<bool(VkPhysicalDevice)> selector, VkPhysicalDeviceFeatures deviceFeatures);
 
 #pragma region 2 Vulkan Render Device
 
@@ -207,36 +197,14 @@ bool CreateTexturedVertexBuffer(const ms::VulkanRenderDevice& renderDevice, cons
 
 #pragma region 3 Textured Vertex Buffer
 
-// Create the GPU Buffer
-bool CreateBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
 // Create a Uniform Buffer
 bool CreateUniformBuffers(ms::VulkanState& vkState, ms::VulkanRenderDevice& rendererDevice);
-
-uint32_t _FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
-// Copy data into the GPU Buffer
-void _CopyBuffer(const ms::VulkanRenderDevice & renderDevice, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 #pragma endregion
 
 bool CreateTextureImage(const ms::VulkanRenderDevice & device, const char* fileName, VkImage& textureImage, VkDeviceMemory& textureImageMemory);
 
 bool CreateTextureSampler(VkDevice device, VkSampler* sampler);
-
-#pragma region 4 Texture Image and Texture Sampler
-
-bool _CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling VkImageTiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
-void _TransitionImageLayout(const ms::VulkanRenderDevice & renderDevice, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount = 1, uint32_t mipLevels = 1);
-
-void _TransitionImageLayoutCmd(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount, uint32_t mipLevels);
-
-bool _HasStencilComponent(VkFormat format);
-
-void _CopyBufferToImage(ms::VulkanRenderDevice device, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-#pragma endregion
 
 bool CreateDepthResources(const ms::VulkanRenderDevice & renderDevice, uint32_t width, uint32_t height, ms::VulkanImage& depth);
 
@@ -288,10 +256,6 @@ size_t _CompileShaderFile(const char* file, glslang_stage_t stage, ms::ShaderMod
 void _SaveSPIRVBinaryFile(const char* filename, unsigned int* code, size_t size);
 
 #pragma endregion
-
-void UploadBufferData(uint32_t currentImage, ms::VulkanState& vkState, ms::VulkanRenderDevice& rendererDevice, const ms::UniformBuffer& ubo);
-
-void UploadBufferData(const ms::VulkanRenderDevice& rendererDevice, const VkDeviceMemory& bufferMemory, VkDeviceSize deviceOffset, const void* data, const size_t dataSize);
 
 bool FillCommandBuffers(ms::VulkanRenderDevice& renderDevice, ms::VulkanState& state, const unsigned int indexBufferSize, const unsigned int width, const unsigned int height, size_t i);
 

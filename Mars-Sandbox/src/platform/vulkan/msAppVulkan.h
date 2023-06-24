@@ -29,7 +29,8 @@ namespace ms
 		void Destroy() override;
 
 		MsWindowVulkan		mWindow;
-		VulkanInstance		mVulkanInstance;
+		vkInstance*			mVulkanInstance = nullptr;
+
 		VulkanRenderDevice	mVulkanRenderDevice;
 		VulkanState			mVulkanState;
 	};

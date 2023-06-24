@@ -5,6 +5,8 @@
 
 #include "vkCommandBufferMgr.h"
 #include "vkBufferMgr.h"
+#include "vkInstance.h"
+
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
@@ -13,109 +15,13 @@
 #pragma warning(disable : 26451)
 #include "stb/stb_image.h"
 
-// Vulkan Instance related objects
-void CreateVulkanInstance(VkInstance* instance)
-{
-    const std::vector<const char*> layers =
-    {
-        "VK_LAYER_KHRONOS_validation"
-    };
-
-    const std::vector<const char*> extensions =
-    {
-        VK_KHR_SURFACE_EXTENSION_NAME
-       ,VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-       ,VK_EXT_DEBUG_REPORT_EXTENSION_NAME
-        /* for indexed textures */
-       ,VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
-#if defined (_WIN32)
-       ,"VK_KHR_win32_surface"
-#endif // WIN32
-    };
-
-    const VkApplicationInfo appInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pNext = nullptr,
-        .pApplicationName = "Vulkan",
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName = "No Engine",
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_3
-    };
-
-    const VkInstanceCreateInfo createInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .pApplicationInfo = &appInfo,
-        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
-        .ppEnabledLayerNames = layers.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-        .ppEnabledExtensionNames = extensions.data()
-    };
-
-    VK_CHECK(vkCreateInstance(&createInfo, nullptr, instance));
-
-    volkLoadInstance(*instance);
-}
-
-#pragma region 1 Vulkan Instance
-
-// Set up Vulkan Debugging capabilities
-
-bool SetupDebugCallbaks(VkInstance* instance, VkDebugUtilsMessengerEXT* messenger, VkDebugReportCallbackEXT* reportCallback)
-{
-    const VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo =
-    {
-        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        .messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-        .messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-        .pfnUserCallback = &_VulkanDebugCallback,
-        .pUserData = nullptr
-    };
-
-    VK_CHECK(vkCreateDebugUtilsMessengerEXT(*instance, &messengerCreateInfo, nullptr, messenger));
-
-    const VkDebugReportCallbackCreateInfoEXT messengerCreateInfo2 =
-    {
-        .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-        .pNext = nullptr,
-        .flags =
-            VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT,
-        .pfnCallback = &_VulkanDebugReportCallback,
-        .pUserData = nullptr
-    };
-
-    VK_CHECK_RET(vkCreateDebugReportCallbackEXT(*instance, &messengerCreateInfo2, nullptr, reportCallback));
-}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL _VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT secerity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* calbackData, void* userData)
-{
-    printf("Validation layer: %s\n\n", calbackData->pMessage);
-    return VK_FALSE;
-}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL _VulkanDebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* userData)
-{
-    if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
-        return VK_FALSE;
-    printf("Debug callback (%s): %s\n\n", pLayerPrefix, pMessage);
-    return VK_FALSE;
-}
-
-#pragma endregion
-
 // Vulkan Render Device related objects
-bool CreateVulkanRenderDevice(ms::VulkanInstance* instance, ms::VulkanRenderDevice* renderDevice, uint32_t width, uint32_t height, std::function<bool(VkPhysicalDevice)> selector, VkPhysicalDeviceFeatures deviceFeatures)
+bool CreateVulkanRenderDevice(ms::vkInstance* instance, ms::VulkanRenderDevice* renderDevice, uint32_t width, uint32_t height, std::function<bool(VkPhysicalDevice)> selector, VkPhysicalDeviceFeatures deviceFeatures)
 {
     renderDevice->framebufferHeight = height;
     renderDevice->framebufferWidth = width;
 
-    if (!_FindSuitablePhysicalDevice(instance->instance, selector, &renderDevice->physicalDevice))
+    if (!_FindSuitablePhysicalDevice(instance->GetInstance(), selector, &renderDevice->physicalDevice))
     {
         ASSERT(false);
     }
@@ -131,10 +37,10 @@ bool CreateVulkanRenderDevice(ms::VulkanInstance* instance, ms::VulkanRenderDevi
     ASSERT(renderDevice->graphicsQueue != nullptr);
 
     VkBool32 presentSupported = 0;
-    vkGetPhysicalDeviceSurfaceSupportKHR(renderDevice->physicalDevice, renderDevice->graphicsFamily, instance->surface, &presentSupported);
+    vkGetPhysicalDeviceSurfaceSupportKHR(renderDevice->physicalDevice, renderDevice->graphicsFamily, *instance->GetSurfaceKHR(), &presentSupported);
     ASSERT(presentSupported != 0);
 
-    ASSERT(_CreateSwapchain(renderDevice->device, renderDevice->physicalDevice, instance->surface, renderDevice->graphicsFamily, width, height, &renderDevice->swapchain, true));
+    ASSERT(_CreateSwapchain(renderDevice->device, renderDevice->physicalDevice, *instance->GetSurfaceKHR(), renderDevice->graphicsFamily, width, height, &renderDevice->swapchain, true));
 
     size_t imageCount = 0;
     imageCount = _CreateSwapchainImages(renderDevice->device, renderDevice->swapchain, renderDevice->swapchainImages, renderDevice->swapchainImageViews);

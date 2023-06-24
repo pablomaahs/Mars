@@ -7,6 +7,7 @@
 #include "platform/vulkan/vkVulkanFinish.h"
 #include "platform/vulkan/vkVulkanModelRenderer.h"
 #include "platform/vulkan/vkVulkanCanvas.h"
+#include "platform/vulkan/utils/vkInstance.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
@@ -39,23 +40,12 @@ namespace ms
         EASY_BLOCK("Initialize");
         OPTICK_PUSH("Initialize");
 
-        CreateVulkanInstance(&mVulkanInstance.instance);
+        // VulkanInstance
+        mVulkanInstance = new vkInstance();
+        VK_CHECK(glfwCreateWindowSurface(mVulkanInstance->GetInstance(), mWindow.GetGLFWWindow(), nullptr, mVulkanInstance->GetSurfaceKHR()));
 
-        if (false)
-        {
-            uint32_t extensionCount = 0;
-            vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-            std::cout << "Vulkan has " << extensionCount << " extensions supported\n";
-        }
-
-        if (!SetupDebugCallbaks(&mVulkanInstance.instance, &mVulkanInstance.messenger, &mVulkanInstance.reportCallback))
-        {
-            exit(EXIT_FAILURE);
-        }
-
-        VK_CHECK(glfwCreateWindowSurface(mVulkanInstance.instance, mWindow.GetGLFWWindow(), nullptr, &mVulkanInstance.surface));
-
-        if (!CreateVulkanRenderDevice(&mVulkanInstance, &mVulkanRenderDevice, mWindow.GetWidth(), mWindow.GetHeight(), isDeviceSuitable, { .geometryShader = VK_TRUE }))
+        // VulkanRenderDevice
+        if (!CreateVulkanRenderDevice(mVulkanInstance, &mVulkanRenderDevice, mWindow.GetWidth(), mWindow.GetHeight(), isDeviceSuitable, { .geometryShader = VK_TRUE }))
         {
             exit(EXIT_FAILURE);
         }
@@ -82,12 +72,7 @@ namespace ms
         vkDestroyDevice(mVulkanRenderDevice.device, nullptr);
 
         // VulkanInstance
-        vkDestroySurfaceKHR(mVulkanInstance.instance, mVulkanInstance.surface, nullptr);
-
-        vkDestroyDebugReportCallbackEXT(mVulkanInstance.instance, mVulkanInstance.reportCallback, nullptr);
-        vkDestroyDebugUtilsMessengerEXT(mVulkanInstance.instance, mVulkanInstance.messenger, nullptr);
-
-        vkDestroyInstance(mVulkanInstance.instance, nullptr);
+        delete mVulkanInstance;
 
         OPTICK_STOP_CAPTURE();
         OPTICK_SAVE_CAPTURE("VulkanApp_Optick");
