@@ -47,7 +47,9 @@ namespace ms
 		VkDebugReportCallbackEXT mReportCallbackEXT = VK_NULL_HANDLE;
 		static VKAPI_ATTR VkBool32 VKAPI_CALL _VulkanDebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* userData);
 
+		// VkInstance - Represents the connection from your application to the Vulkan runtime.
 		VkInstance mVulkanInstance = VK_NULL_HANDLE;
+		// VkSurfaceKHR - Represents an abstract type of surface to present rendered images to.
 		VkSurfaceKHR mSurfaceKHR = VK_NULL_HANDLE;
 	};
 };

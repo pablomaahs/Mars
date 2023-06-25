@@ -78,16 +78,6 @@ namespace ms
         VkImageView imageView = nullptr;
     };
 
-    struct VulkanInstance
-    {
-        // VkInstance - Represents the connection from your application to the Vulkan runtime.
-        VkInstance instance;
-        // VkSurfaceKHR - Represents an abstract type of surface to present rendered images to.
-        VkSurfaceKHR surface;
-        VkDebugUtilsMessengerEXT messenger;
-        VkDebugReportCallbackEXT reportCallback;
-    };
-
     struct VulkanRenderDevice
     {
         // VkPhysicalDevice - Represents a specific Vulkan-compatible device, like a graphics card.
